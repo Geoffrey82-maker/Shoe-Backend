@@ -1,0 +1,308 @@
+import Order from "../models/Order.js";
+import Product from "../models/Product.js";
+import User from "../models/User.js";
+
+export const getAllOrders = async (req, res) => {
+    try {
+
+        const search = req.query.search || "";
+
+        const filter = search
+            ? {
+                orderNumber: {
+                    $regex: search,
+                    $options: "i"
+                }
+            }
+            : {};
+
+        const page = Number(req.query.page) || 1;
+
+        const limit = 10;
+
+        const skip = (page - 1) * limit;
+
+        const orders = await Order.find(filter)
+            .populate(
+                "user",
+                "firstname lastname email"
+            )
+            .sort({
+                createdAt: -1
+            })
+            .skip(skip)
+            .limit(limit);
+
+        res.status(200).json({
+            success: true,
+            count: orders.length,
+            orders
+        });
+
+    } catch(error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const updateOrderStatus = async (req, res) => {
+    try {
+        const { status } = req.body;
+        const order = await Order.findById(req.params.id);
+
+        if(!order) {
+            return res.status(404).json({
+                success: false,
+                message: "Order not found"
+            });
+        }
+
+        order.orderStatus = status;
+
+        if(status === "shipped") {
+            //send shipped email
+        }
+
+        if(status === "delivered") {
+            //send delivered email
+            order.deliveredAt = new Date();
+        }
+
+        if(status === "cancelled") {
+            order.cancelledAt = new Date();
+        }
+
+        const keyword = req.query.search? {
+            orderNumber: {
+                $regex: req.query.search,
+                $options: "i"
+            }
+        } : {};
+
+        const orders = await Order.find(keyword);
+
+        await order.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Order status updated",
+            order
+        });
+    }catch(error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+}
+
+export const getDashboardStats = async(req, res) => {
+    try {
+        const totalOrders = await Order.countDocuments();
+
+        const totalProducts = await Product.countDocuments();
+
+        const totalUsers = await User.countDocuments();
+
+        const pendingOrders = await Order.countDocuments({
+            orderStatus: "pending"
+        });
+
+        const paidOrders = await Order.countDocuments({
+            "payment.status" : "paid"
+        });
+
+        const revenueResult = await Order.aggregate([
+            {
+                $match: {
+                    "payment.status" : "paid"
+                }
+            },
+
+            {
+                $group: {
+                    _id: null,
+                    totalRevenue: {
+                        $sum: "$totalAmount"
+                    }
+                }
+            }
+        ]);
+
+        const processingOrders = await Order.countDocuments({ orderStatus : "processing" });
+
+        const shippedOrders = await Order.countDocuments({ orderStatus: "shipped" });
+
+        const deliveredOrders = await Order.countDocuments({ orderStatus: "delivered" });
+
+        const cancelledOrders = await Order.countDocuments({ orderStatus: "cancelled" });
+
+        const totalRevenue = revenueResult[0]?.totalRevenue || 0;
+
+        res.status(200).json({
+            success: true,
+
+            stats: {
+                totalOrders,
+                totalProducts,
+                totalUsers,
+                pendingOrders,
+                paidOrders,
+                processingOrders,
+                shippedOrders,
+                deliveredOrders,
+                cancelledOrders,
+                totalRevenue
+            }
+        });
+
+    }catch(error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+}
+
+export const getRecentOrders = async (req, res) => {
+    try{
+        const orders = await Order.find()
+            .populate("user", "firstname lastname email")
+            .sort({ createdAt: -1 })
+            .limit(10);
+        
+        res.status(200).json({
+            success: true,
+            orders
+        });
+
+    }catch(error) {
+        console.log(error);
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Low Stock Products
+export const getLowStockProducts = async (req, res) => {
+    try {
+        const products = await Product.find({
+            stock: { $lte: 5 }
+        });
+
+        res.status(200).json({
+            success: true, 
+            products
+        });
+    }catch(error) {
+        console.error(error);
+        
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+}
+
+// Best selling Products
+export const getBestSellingProduct = async (req, res) => {
+    try {
+        const bestSellers = await Order.aggregate([
+            { $unwind: "$items" },
+
+            {
+                $group: {
+                    _id: "$items.product",
+                    totalSold: {
+                        $sum: "$items.quantity"
+                    }
+                }
+            },
+
+            {
+                $sort: {
+                    totalSold: -1
+                }
+            },
+            {
+                $limit: 5
+            }
+        ]);
+
+        res.status(200).json({
+            success: true,
+            bestSellers
+        });
+
+    }catch(error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+}
+
+export const getMonthlySales = async (req, res) => {
+    try {
+
+        const monthlySales = await Order.aggregate([
+            {
+                $match: {
+                    "payment.status": "paid"
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        month: {
+                            $month: "$createdAt"
+                        }
+                    },
+                    revenue: {
+                        $sum: "$totalAmount"
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    month: "$_id.month",
+                    revenue: 1
+                }
+            },
+            {
+                $sort: {
+                    month: 1
+                }
+            }
+        ]);
+
+        res.status(200).json({
+            success: true,
+            monthlySales
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
