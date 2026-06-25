@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens ─────────────────────────────────────── */
+:root {
+  --pr:     #E8441A;
+  --pr-d:   #C9320F;
+  --pr-l:   #FF6B45;
+  --dk:     #1A1A1A;
+  --bg:     #FFFFFF;
+  --sf:     #F9F5F0;
+  --cd:     #FFFFFF;
+  --tx:     #1A1A1A;
+  --tx-m:   #6B6B6B;
+  --bd:     #E8E4DF;
+  --shadow: 0 4px 24px rgba(0,0,0,0.07);
+  --radius: 14px;
+  --nav-h:  68px;
+}
+
+.dark {
+  --bg:   #111111;
+  --sf:   #1A1A1A;
+  --cd:   #1E1E1E;
+  --tx:   #F0F0F0;
+  --tx-m: #888888;
+  --bd:   #2A2A2A;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+
+/* ── Reset ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--tx);
+  min-height: 100vh;
+  line-height: 1.5;
+  transition: background 0.3s, color 0.3s;
+  -webkit-font-smoothing: antialiased;
+}
+a { text-decoration: none; color: inherit; }
+img { display: block; max-width: 100%; }
+button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+input, select, textarea { font-family: inherit; }
+ul { list-style: none; }
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 3px; }
+
+/* ── Focus ─────────────────────────────────────────────── */
+:focus-visible { outline: 2px solid var(--pr); outline-offset: 2px; }
+
+/* ── Animations ────────────────────────────────────────── */
+@keyframes fadeUp  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+@keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+@keyframes slideIn { from { transform:translateX(100%); } to { transform:none; } }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.fade-up  { animation: fadeUp  0.4s ease both; }
+.fade-in  { animation: fadeIn  0.3s ease both; }
+.slide-in { animation: slideIn 0.35s cubic-bezier(.16,1,.3,1) both; }
+
+/* ── Container ─────────────────────────────────────────── */
+.container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Skeleton ──────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bd) 25%, var(--sf) 50%, var(--bd) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 8px;
+}
