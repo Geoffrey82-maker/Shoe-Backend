@@ -48,7 +48,7 @@ export const register = async (req, res) => {
         
         res.status(500).json({
             success: false,
-            message: err.message
+            message: "Internal server error"
         });
     }
 }
@@ -160,6 +160,13 @@ export const changePassword = async(req, res) => {
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
 
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            message: "User not found"
+        });
+    }
+
     if(!isMatch) {
         return res.status(400).json({
             success: false,
@@ -195,7 +202,7 @@ export const forgotPassword = async (req, res) => {
         validateBeforeSave: false
     });
 
-    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
     await sendPasswordResetEmail(
         user.email,

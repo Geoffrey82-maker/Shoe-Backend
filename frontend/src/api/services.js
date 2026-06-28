@@ -56,3 +56,20 @@ export const wishlistAPI = {
   get:    ()          => client.get('/wishlist'),
   toggle: (productId) => client.post('/wishlist', { productId }),
 };
+
+// ── Admin ────────────────────────────────────────────────
+export const adminAPI = {
+  getDashboard:       ()           => client.get('/admin/dashboard'),
+  getMonthlySales:    ()           => client.get('/admin/sales/monthly'),
+  getRecentOrders:    ()           => client.get('/admin/orders/recent'),
+  getAllOrders:        (params)     => client.get('/admin/orders', { params }),
+  updateOrderStatus:  (id, status) => client.put(`/admin/orders/${id}/status`, { status }),
+  updatePayStatus:    (id, status) => client.put(`/admin/orders/${id}/payment-status`, { status }),
+  getLowStock:        ()           => client.get('/admin/products/low-stock'),
+  getBestSellers:     ()           => client.get('/admin/products/best-sellers'),
+  createProduct:      (form)       => client.post('/products', form, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getAllCoupons:       ()           => client.get('/coupons'),
+  createCoupon:       (data)       => client.post('/coupons', data),
+  toggleCoupon:       (id)         => client.put(`/coupons/${id}/toggle`),
+  deleteCoupon:       (id)         => client.delete(`/coupons/${id}`),
+};

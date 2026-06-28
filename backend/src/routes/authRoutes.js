@@ -18,7 +18,12 @@ import {
 import protect from "../middleware/authMiddleware.js";
 
 import validate from "../middleware/validationMiddlware.js";
-import { registerValidator } from "../validators/authValidator.js";
+import {
+    registerValidation,
+    loginValidation,
+    resetPasswordValidation,
+    forgotPasswordValidation
+} from "../validators/authValidator.js";
 import avatarUpload from "../middleware/avatarUploadMiddleware.js";
 
 const router = express.Router();
@@ -27,11 +32,14 @@ const router = express.Router();
 
 router.post(
   '/register', 
-  registerValidator, 
-  validate, register
+  registerValidation,
+  validate,
+  register
 );
 router.post(
   '/login', 
+  loginValidation,
+  validate,
   login
 );
 
@@ -43,11 +51,15 @@ router.get(
 
 router.post(
   "/forgot-password", 
+  forgotPasswordValidation,
+  validate,
   forgotPassword
 );
 
 router.post(
   "/reset-password/:token", 
+  resetPasswordValidation,
+  validate,
   resetPassword
 );
 
@@ -72,9 +84,9 @@ router.put(
 
 // Addresses routes
 router.get(
-    "/addresses",
-    protect,
-    getAddresses
+  "/addresses",
+  protect,
+  getAddresses
 );
 
 router.post(

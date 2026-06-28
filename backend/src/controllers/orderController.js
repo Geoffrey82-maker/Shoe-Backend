@@ -2,12 +2,38 @@ import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
 import Coupon from '../models/Coupon.js';
 import Product from "../models/Product.js";
+import mongoose from "mongoose";
 import { sendOrderConfirmationEmail } from '../services/emailService.js';
 
 export const createOrder = async (req, res) => {
+    let session;
     try {
 
-        const { items, shippingAddress, paymentMethod, couponCode } = req.body;
+        const session = await mongoose.startSession();
+
+        session.startTransaction();
+
+        const { shippingAddress, paymentMethod, couponCode } = req.body;
+
+        if (!shippingAddress) {
+            return res.status(400).json({
+                success: false,
+                message: "Shipping address is required."
+            });
+        }
+
+        const allowedMethods = [
+            "card",
+            "cash",
+            "mpesa"
+        ];
+
+        if (!allowedMethods.includes(paymentMethod)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid payment method."
+            });
+        }
 
         const cart = await Cart.findOne({ user: req.user._id });
 
@@ -18,91 +44,123 @@ export const createOrder = async (req, res) => {
             });
         }
 
-        const subtotal = cart.items.reduce(
-            (sum, item) => sum + ( item.price * item.quantity), 0
-        );
+        let subtotal = 0;
 
         const shippingFee = 0;
 
-let discountAmount = 0;
+        let discountAmount = 0;
 
-if (couponCode) {
+        if (couponCode) {
 
-    const coupon = await Coupon.findOne({
-        code: couponCode.toUpperCase(),
-        isActive: true
-    });
+            const coupon = await Coupon.findOne({
+                code: couponCode.trim().toUpperCase(),
+                isActive: true
+            });
 
-    if (!coupon) {
-        return res.status(400).json({
-            success: false,
-            message: "Invalid coupon"
-        });
-    }
-
-    if (coupon.expiresAt < new Date()) {
-        return res.status(400).json({
-            success: false,
-            message: "Coupon expired"
-        });
-    }
-
-    if (coupon.discountType === "percentage") {
-
-        discountAmount =
-            subtotal *
-            (coupon.discountValue / 100);
-
-    } else {
-
-        discountAmount =
-            coupon.discountValue;
-    }
-}
-
-const totalAmount =
-    subtotal +
-    shippingFee -
-    discountAmount;
-        const count = await Order.countDocuments();
-
-        const orderNumber = `SHOE-${1000 + count + 1}`;
-
-        for(const item of cart.items) {
-            const product = await Product.findById(item.product);
-
-            if(!product || product.stock < item.quantity) {
+            if (!coupon) {
                 return res.status(400).json({
                     success: false,
-                    message: `${item.name} is out of stock`
+                    message: "Invalid coupon"
                 });
+            }
+
+            if (coupon.expiresAt < new Date()) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Coupon expired"
+                });
+            }
+
+            if (coupon.discountType === "percentage") {
+
+                discountAmount =
+                    subtotal *
+                    (coupon.discountValue / 100);
+
+            } else {
+
+                discountAmount =
+                    coupon.discountValue;
             }
         }
 
-        const order = await Order.create({
-            orderNumber,
-
-            user: req.user._id,
-
-            items: cart.items,
-
-            shippingAddress,
-
-            subtotal,
-
-            shippingFee,
-
+        const totalAmount = Math.max(
+            subtotal +
+            shippingFee -
             discountAmount,
+            0
+        );
 
-            couponCode,
+        const orderNumber = `SHOE-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-            totalAmount,
+        for (const item of cart.items) {
 
-            payment: {
-                method: paymentMethod,
-                status: "pending"
+            const product = await Product.findById(item.product);
+
+            if (!product) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Product not found"
+                });
             }
-        });
+
+            if (product.stock < item.quantity) {
+                return res.status(400).json({
+                    success: false,
+                    message: `${product.name} is out of stock`
+                });
+            }
+
+            subtotal += product.price * item.quantity;
+
+            item.price = product.price;
+
+        }
+
+        const order = await Order.create(
+            [{
+                orderNumber,
+
+                user: req.user._id,
+
+                items: cart.items,
+
+                shippingAddress,
+
+                subtotal,
+
+                shippingFee,
+
+                discountAmount,
+
+                couponCode,
+
+                totalAmount,
+
+                payment: {
+                    method: paymentMethod,
+                    status: "pending"
+                }
+            }],
+            { session }
+        );
+
+        const createdOrder = order[0];
+        for (const item of cart.items) {
+
+            await Product.findByIdAndUpdate(
+                item.product,
+                {
+                    $inc: {
+                        stock: -item.quantity
+                    }
+                },
+                {
+                    session
+                }
+            );
+
+        }
 
         if(couponCode) {
             await Coupon.findOneAndUpdate(
@@ -113,15 +171,33 @@ const totalAmount =
                     $inc: {
                         usedCount: 1
                     }
+                },
+                {
+                    session
                 }
             );
         }
+
+        if (
+            coupon.usageLimit &&
+            coupon.usedCount >= coupon.usageLimit
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Coupon usage limit reached."
+            });
+        }
+
+        //Clear user's cart
+        cart.items = [];
+
+        await cart.save({ session });
 
         try {
 
             await sendOrderConfirmationEmail(
                 req.user.email,
-                order.orderNumber
+                createdOrder.orderNumber
             );
         }catch(emailError) {
             console.error(
@@ -130,20 +206,34 @@ const totalAmount =
             );
         }
 
+        await session.commitTransaction();
+
+        session.endSession();
+
         return res.status(201).json({
             success: true,
             message: "Order created successfully",
-            order
+            order: createdOrder
         });
 
 
-    }catch(error) {
+    }catch (error) {
+
+        if (session) {
+
+            await session.abortTransaction();
+
+            session.endSession();
+
+        }
+
         console.error(error);
 
         return res.status(500).json({
             success: false,
             message: error.message
         });
+
     }
 }
 
@@ -228,7 +318,7 @@ export const markOrderPaid = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: message.error
+            message: error.message
         });
     }
 }
@@ -260,7 +350,24 @@ export const cancelOrder = async (req, res) => {
 
         order.orderStatus = "cancelled";
         order.cancelledAt = new Date();
-        await order.save();
+
+        
+        // Restore product stock
+        
+        for (const item of order.items) {
+
+            await Product.findByIdAndUpdate(
+                item.product,
+                {
+                    $inc: {
+                        stock: item.quantity
+                    }
+                }
+            );
+
+        }
+
+await order.save();
 
         res.status(200).json({
             success: true,
