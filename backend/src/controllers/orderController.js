@@ -3,6 +3,7 @@ import Cart from '../models/Cart.js';
 import Coupon from '../models/Coupon.js';
 import Product from "../models/Product.js";
 import mongoose from "mongoose";
+import crypto from "crypto";
 import { sendOrderConfirmationEmail } from '../services/emailService.js';
 
 export const createOrder = async (req, res) => {
@@ -91,7 +92,8 @@ export const createOrder = async (req, res) => {
             0
         );
 
-        const orderNumber = `SHOE-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const orderNumber =
+            `SHOE-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
 
         for (const item of cart.items) {
 
@@ -162,21 +164,7 @@ export const createOrder = async (req, res) => {
 
         }
 
-        if(couponCode) {
-            await Coupon.findOneAndUpdate(
-                {
-                    code: couponCode.toUpperCase()
-                },
-                {
-                    $inc: {
-                        usedCount: 1
-                    }
-                },
-                {
-                    session
-                }
-            );
-        }
+        
 
         if (
             coupon.usageLimit &&
@@ -195,10 +183,14 @@ export const createOrder = async (req, res) => {
 
         try {
 
-            await sendOrderConfirmationEmail(
-                req.user.email,
-                createdOrder.orderNumber
-            );
+            await sendOrderConfirmationEmail({
+
+                user: req.user,
+
+                order
+
+            });
+            
         }catch(emailError) {
             console.error(
                 "Email Error:",
@@ -292,7 +284,7 @@ export const getOrderById = async (req, res) => {
     }
 }
 
-export const markOrderPaid = async (req, res) => {
+export const updateOrderPaymentStatus = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
         if(!order) {
@@ -302,9 +294,13 @@ export const markOrderPaid = async (req, res) => {
             });
         }
 
-        order.paymentStatus = "paid";
+        order.payment.status = "paid";
 
-        order.paidAt = new Date();
+        order.payment.transactionId = transactionId;
+
+        order.payment.gateway = "stripe";
+
+        order.payment.paidAt = new Date();
 
         await order.save();
 
@@ -367,7 +363,7 @@ export const cancelOrder = async (req, res) => {
 
         }
 
-await order.save();
+        await order.save();
 
         res.status(200).json({
             success: true,

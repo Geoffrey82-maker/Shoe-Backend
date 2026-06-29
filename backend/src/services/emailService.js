@@ -1,51 +1,51 @@
 import transporter from "../config/email.js";
+import orderConfirmationTemplate from "../emails/templates/orderConfirmationTemplate.js";
+import passwordResetTemplate
+from "../emails/templates/passwordResetTemplate.js";
 
-export const sendOrderConfirmationEmail = async (email, orderNumber) => {
+
+export const sendOrderConfirmationEmail = async (user, order) => {
     await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: "Order Confirmation",
-        html: `
-            <h2>Thank you for ordering at Shoe Store</h2>
-            <p>
-                Your order <strong>${orderNumber}</strong>
-                has been received.
-            </p>
-        `
+        from: `"SoleStreet" <${process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: `Order ${order.orderNumber} Confirmed`,
+        html: orderConfirmationTemplate({
+
+            firstname: user.firstname,
+
+            orderNumber: order.orderNumber,
+
+            totalAmount: order.totalAmount,
+
+            paymentMethod: order.payment.method,
+
+            orderUrl: `${process.env.FRONTEND_URL}/orders/${order._id}`
+
+        })
     });
 };
 
 export const sendPasswordResetEmail =
-async(email, resetUrl)=>{
+async({user, resetUrl})=>{
 
     await transporter.sendMail({
 
-        from: process.env.EMAIL_USER,
+        from:
+            `"SoleStreet" <${process.env.EMAIL_USER}>`,
 
-        to: email,
+        to: user.email,
 
-        subject: "Password Reset Request",
+        subject: "Reset Your SoleStreet Password",
 
-        html: `
-            <h2>Password Reset</h2>
+        html: passwordResetTemplate({
 
-            <p>
-                You requested a password reset.
-            </p>
+            firstname: user.firstname,
 
-            <p>
-                Click the link below:
-            </p>
+            resetUrl
 
-            <a href="${resetUrl}">
-                Reset Password
-            </a>
+        })
 
-            <p>
-                This link expires in
-                15 minutes.
-            </p>
-        `
     });
 
 };
+

@@ -12,6 +12,7 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import { stripeWebhook } from './controllers/paymentController.js';
 import couponRoutes from "./routes/couponRoutes.js"
 import wishlistRoutes from "./routes/wishlistRoutes.js";
+import errorHandler from './middleware/errorHandler.js';
 
 
 const app = express();
@@ -52,6 +53,17 @@ app.use("/api/order", orderRoutes);
 app.use("/api/admin", adminOrderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/coupons", couponRoutes);
-app.use("/api/wishlist", wishlistRoutes)
+app.use("/api/wishlist", wishlistRoutes);
+
+/* app.use("*", (req, res) => {
+
+    res.status(404).json({
+        success: false,
+        message: "Route not found"
+    });
+
+}); */
+
+app.use(errorHandler);
 
 export default app;

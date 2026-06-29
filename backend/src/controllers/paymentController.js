@@ -6,6 +6,83 @@ import axios from "axios";
 import generateAccessToken from "../config/mpesa.js";
 import generateToken from "../utils/generateToken.js";
 
+const completeOrder = async (
+    order,
+    gateway,
+    transactionId,
+    paidAt = new Date()
+) => {
+
+    order.payment.status = "paid";
+
+    order.payment.gateway = gateway;
+
+    order.payment.transactionId = transactionId;
+
+    order.payment.paidAt = paidAt;
+
+    order.orderStatus = "processing";
+
+    for (const item of order.items) {
+
+        const updated =
+            await Product.findOneAndUpdate(
+                {
+                    _id: item.product,
+                    stock: {
+                        $gte: item.quantity
+                    }
+                },
+                {
+                    $inc: {
+                        stock: -item.quantity
+                    }
+                }
+            );
+
+        if (!updated) {
+
+            order.orderStatus = "on_hold";
+
+            await order.save();
+
+            console.error(
+            `Order ${order.orderNumber} placed on hold because stock was unavailable.`
+            );
+
+            return false;
+
+        }
+
+    }
+
+    if(order.couponCode) {
+        await Coupon.findOneAndUpdate(
+            {
+                code: order.couponCode.toUpperCase()
+            },
+            {
+                $inc: {
+                    usedCount: 1
+                }
+            },
+            {
+                session
+            }
+        );
+    }
+
+
+    await Cart.findOneAndDelete({
+        user: order.user
+    });
+
+    await order.save();
+
+    return true;
+
+};
+
 export const createPaymentIntent = async (req, res) => {
     try {
         const { orderId } = req.body;
@@ -69,7 +146,7 @@ export const updatePaymentStatus = async (req, res) => {
     try {
         const { status } = req.body;
 
-        const order = await order.findById(req.params.id);
+        const order = await Order.findById(req.params.id);
 
         if(!order) {
             return res.status(404).json({
@@ -81,7 +158,7 @@ export const updatePaymentStatus = async (req, res) => {
         order.payment.status = status;
 
         if(status === "paid") {
-            order.paidAt = new Date();
+            order.payment.paidAt = new Date();
         }
 
         await order.save();
@@ -128,51 +205,45 @@ export const stripeWebhook = async (req, res) => {
 
 
         try {
-            const order = await Order.findOne({
-                "payment.transactionId" : paymentIntent.id
-            });
-            console.log("Order Found:", order?.id);
 
-            if(order) {
+            const order = await Order.findById(
+                paymentIntent.metadata.orderId
+            );
 
-                if(order.payment.status === "paid") {
-                    return res.json({ received: true });
-                }
-
-                order.payment.status = "paid";
-                order.paidAt = new Date();
-
-                order.orderStatus = "processing";
-
-                //Reduce stock
-                for(const item of order.items) {
-                    const product = await Product.findById(item.product);
-
-                    if(product) {
-                        product.stock -= item.quantity;
-
-                        if(product.stock < 0) {
-                            product.stock = 0;
-                        }
-
-                        await product.save();
-                    }
-                }
-
-                console.log(`Order ${order._id} marked as paid`);
-
-                console.log(
-                    `Cart cleared for user ${order.user}`
-                );
-
-                //Optional: clear cart after successful payment
-                await Cart.findOneAndDelete({ user: order.user });
-
-                console.log(
-                    `Stock updated for order ${order._id}`
-                );
-                await order.save();
+            if (!order) {
+                throw new Error("Order not found");
             }
+
+            if (order.payment.status === "paid") {
+                return res.json({
+                    received: true
+                });
+            }
+
+            if (
+                order.payment.transactionId !== paymentIntent.id
+            ) {
+                throw new Error("Payment ID mismatch");
+            }
+
+            const success = await completeOrder(
+                order,
+                "stripe",
+                paymentIntent.id,
+                new Date(paymentIntent.created * 1000)
+            );
+
+            if (!success) {
+
+                console.error(
+                    `Failed completing order ${order.orderNumber}`
+                );
+
+            }
+
+            return res.json({
+                received: true
+            });
         }catch(error) {
             console.error(error);
         }
@@ -194,7 +265,7 @@ export const initiateMpesaPayment = async(req, res) => {
             });
         }
 
-        const token = await generateToken();
+        const token = await generateAccessToken();
 
         console.log("MPESA TOKEN:", token);
 
@@ -234,6 +305,21 @@ export const initiateMpesaPayment = async(req, res) => {
             }
         );
 
+        order.payment.transactionId =
+            response.data.CheckoutRequestID;
+
+        order.payment.gateway = "mpesa";
+
+        await order.save();
+
+        console.log("MPESA RESPONSE:", response.data);
+
+        res.status(200).json({
+            success: true,
+            message: "STK Push sent successfully",
+            data: response.data
+        });
+
         
 
     }catch(error) {
@@ -244,11 +330,62 @@ export const initiateMpesaPayment = async(req, res) => {
         );
 
         console.log(error);
-    }
+    } 
 };
 
 export const mpesaCallback = async(req, res) => {
     console.log(JSON.stringify(req.body, null, 2));
+    const callback = req.body.Body.stkCallback;
+
+    const checkoutRequestId = callback.CheckoutRequestID;
+
+    const resultCode = callback.ResultCode;
+
+    const order = await Order.findOne({
+        "payment.transactionId": checkoutRequestId
+    });
+
+    if (!order) {
+
+        return res.status(404).json({
+            ResultCode: 0,
+            ResultDesc: "Order not found"
+        });
+
+    }
+
+    if (resultCode !== 0) {
+
+        order.payment.status = "failed";
+
+        await order.save();
+
+        return res.status(200).json({
+            ResultCode: 0,
+            ResultDesc: "Received"
+        });
+
+    }
+
+    const receipt =
+        callback.CallbackMetadata.Item.find(
+            item =>
+                item.Name ===
+                "MpesaReceiptNumber"
+    );
+
+    const receiptNumber = receipt?.Value;
+
+    order.payment.status = "paid";
+
+    order.payment.gateway = "mpesa";
+
+    order.payment.transactionId =
+        receiptNumber;
+
+    order.payment.paidAt = new Date();
+
+    order.orderStatus = "processing";
 
     res.status(200).json({
         ResultCode: 0,

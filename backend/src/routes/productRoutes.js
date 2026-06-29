@@ -4,7 +4,8 @@ import {
     createProduct, 
     updateProduct,
     deleteProduct,
-    getProducts, 
+    getProducts,
+    getProductById,
     getProductBySlug, 
     createReview } from "../controllers/productsContoller.js";
 
@@ -50,6 +51,8 @@ router.delete(
     admin,
     deleteProduct
 );
+
+router.get('/id/:id', getProductById);
 
 router.get('/:slug', getProductBySlug);
 

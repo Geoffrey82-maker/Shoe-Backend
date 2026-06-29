@@ -32,10 +32,15 @@ export const getAllOrders = async (req, res) => {
             })
             .skip(skip)
             .limit(limit);
+        
+        const totalOrders = await Order.countDocuments(filter);
 
         res.status(200).json({
             success: true,
             count: orders.length,
+            totalOrders,
+            page,
+            totalPages: Math.ceil(totalOrders / limit),
             orders
         });
 
@@ -62,29 +67,44 @@ export const updateOrderStatus = async (req, res) => {
             });
         }
 
+        const allowedStatuses = [
+            "pending",
+            "processing",
+            "packed",
+            "shipped",
+            "delivered",
+            "cancelled"
+        ];
+
+        if (!allowedStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid order status"
+            });
+        }
+
         order.orderStatus = status;
 
         if(status === "shipped") {
             //send shipped email
         }
 
-        if(status === "delivered") {
-            //send delivered email
-            order.deliveredAt = new Date();
+        if (order.orderStatus === "delivered") {
+            return res.status(400).json({
+                success: false,
+                message: "Delivered orders cannot be modified."
+            });
         }
 
-        if(status === "cancelled") {
-            order.cancelledAt = new Date();
+        if (
+            status === "cancelled" &&
+            order.orderStatus === "delivered"
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Delivered orders cannot be cancelled."
+            });
         }
-
-        const keyword = req.query.search? {
-            orderNumber: {
-                $regex: req.query.search,
-                $options: "i"
-            }
-        } : {};
-
-        const orders = await Order.find(keyword);
 
         await order.save();
 
@@ -146,6 +166,14 @@ export const getDashboardStats = async(req, res) => {
 
         const totalRevenue = revenueResult[0]?.totalRevenue || 0;
 
+        const lowStockProducts =
+            await Product.countDocuments({
+                stock: {
+                    $lte: 5
+                },
+                isActive: true
+            });
+
         res.status(200).json({
             success: true,
 
@@ -159,7 +187,8 @@ export const getDashboardStats = async(req, res) => {
                 shippedOrders,
                 deliveredOrders,
                 cancelledOrders,
-                totalRevenue
+                totalRevenue,
+                lowStockProducts
             }
         });
 
@@ -199,7 +228,10 @@ export const getRecentOrders = async (req, res) => {
 export const getLowStockProducts = async (req, res) => {
     try {
         const products = await Product.find({
-            stock: { $lte: 5 }
+            stock: {
+                $lte: 5
+            },
+            isActive: true
         });
 
         res.status(200).json({
@@ -229,6 +261,18 @@ export const getBestSellingProduct = async (req, res) => {
                         $sum: "$items.quantity"
                     }
                 }
+            },
+
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "product"
+                }
+            },
+            {
+                $unwind: "$product"
             },
 
             {

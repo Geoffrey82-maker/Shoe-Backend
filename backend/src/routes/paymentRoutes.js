@@ -5,14 +5,22 @@ import { createPaymentIntent, stripeWebhook, initiateMpesaPayment, mpesaCallback
 
 const router = express.Router();
 
-router.post("/stripe/create-payment-intent", protect, createPaymentIntent);
+router.post(
+    "/stripe/create-payment-intent", 
+    protect, 
+    createPaymentIntent
+);
 
 router.post(
     "/stripe/webhook",
     stripeWebhook
 );
 
-router.post("/mpesa/stkpush", protect, initiateMpesaPayment);
+router.post(
+    "/mpesa/stkpush", 
+    protect, 
+    initiateMpesaPayment
+);
 
 router.post("/mpesa/callback", mpesaCallback);
 

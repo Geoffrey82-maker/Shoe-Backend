@@ -57,61 +57,43 @@ const productSchema = new mongoose.Schema(
         },
         images: [
             {
+                url: {
+                    type: String,
+                    required: true
+                },
+                public_id: {
+                    type: String,
+                    required: true
+                }
+            }
+        ],
+        sizes: [
+            {
                 type: String
             }
         ],
-        rating: {
-            type: Number,
-            default: 0
-        },
         numReviews: {
             type: Number,
             default: 0
         },
+        
         reviews: [reviewSchema],
-        featured: {
-            type: Boolean,
-            default: false
-        },
-        isActive: {
-            type: Boolean,
-            default: true
-        },
-        reviews: [{
-            user: {
-                type: mongoose.Schema.Types.ObjectId,
-                red: "User"
-            },
-
-            name: {
-                type: String
-            },
-
-            rating: {
-                type: Number,
-                required: true
-            },
-
-            comment: {
-                type: String,
-                required: true
-            },
-
-            createdAt: {
-                type: Date,
-                default: Date.now
-            }
-        }],
 
         averageRating: {
             type: Number,
             default: 0
         },
+
+        featured: {
+            type: Boolean,
+            default: false
+        },
         
-        numReviews: {
-            type: Number,
-            default: 0
-        }
+        isActive: {
+            type: Boolean,
+            default: true
+        },
+        
     },
     {
         timestamps: true

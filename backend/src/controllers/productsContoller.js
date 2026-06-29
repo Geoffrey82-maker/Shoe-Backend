@@ -1,5 +1,7 @@
 import Product from '../models/Product.js';
 import APIFeatures from '../utils/apiFeatures.js';
+import cloudinary from "../config/cloudinary.js";
+
 export const createProduct = async (req, res) => {
     try {
         const {
@@ -12,7 +14,6 @@ export const createProduct = async (req, res) => {
             stock,
             sizes,
             colors,
-            images,
             featured
         } = req.body;
 
@@ -38,16 +39,17 @@ export const createProduct = async (req, res) => {
             slug = `${slug}-${Date.now()}`;
         }
 
+        const images = req.files.map(file => ({
+            url: file.path,
+            public_id: file.filename
+        }));
+
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({
                 success: false,
                 message: "Please upload at least one product image."
             });
         }
-
-        const imageUrls = req.files.map(file => {
-            return file.path;
-        });
 
         const product = await Product.create({
             name, 
@@ -60,7 +62,7 @@ export const createProduct = async (req, res) => {
             stock,
             sizes,
             colors,
-            images : imageUrls,
+            images,
             featured
         });
         res.status(201).json({
@@ -191,6 +193,23 @@ export const deleteProduct = async (req, res) => {
             });
         }
 
+        for (const image of product.images) {
+
+            try {
+
+                await cloudinary.uploader.destroy(image.public_id);
+
+            } catch (err) {
+
+                console.error(
+                    "Failed to delete image:",
+                    image.public_id
+                );
+
+            }
+
+        }
+
         await product.deleteOne();
 
         res.status(200).json({
@@ -234,6 +253,39 @@ export const getProducts = async (req, res) => {
             message : error.message
         });
     }
+};
+
+export const getProductById = async (req, res) => {
+
+    try {
+
+        const product = await Product.findById(
+            req.params.id
+        );
+
+        if (!product) {
+
+            return res.status(404).json({
+                success: false,
+                message: "Product not found"
+            });
+
+        }
+
+        res.json({
+            success: true,
+            product
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+
+    }
+
 };
 
 export const getProductBySlug = async(req, res) => {
