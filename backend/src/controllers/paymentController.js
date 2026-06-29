@@ -81,6 +81,52 @@ const completeOrder = async (
 
     return true;
 
+    const admins = await User.find({
+
+            role: "admin"
+
+        }).select("_id");
+
+        for (const admin of admins) {
+
+            await createNotification({
+
+                user: admin._id,
+
+                title: "New Order",
+
+                message:
+                    `${order.orderNumber} has been placed.`,
+
+                type: "order",
+
+                icon: "shopping-cart",
+
+                actionUrl:
+                    `/admin/orders/${order._id}`
+
+            });
+
+    }
+
+    await createNotification({
+
+        user: order.user,
+
+        title: "Payment Successful",
+
+        message:
+            `Your payment for ${order.orderNumber} was successful.`,
+
+        type: "payment",
+
+        icon: "credit-card",
+
+        actionUrl:
+            `/orders/${order._id}`
+
+    });
+
 };
 
 export const createPaymentIntent = async (req, res) => {

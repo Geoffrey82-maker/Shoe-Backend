@@ -1,5 +1,6 @@
 import transporter from "../config/email.js";
-import orderConfirmationTemplate from "../emails/templates/orderConfirmationTemplate.js";
+import orderConfirmationTemplate
+from "../emails/templates/orderConfirmationTemplate.js";
 import passwordResetTemplate
 from "../emails/templates/passwordResetTemplate.js";
 

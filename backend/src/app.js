@@ -13,6 +13,7 @@ import { stripeWebhook } from './controllers/paymentController.js';
 import couponRoutes from "./routes/couponRoutes.js"
 import wishlistRoutes from "./routes/wishlistRoutes.js";
 import errorHandler from './middleware/errorHandler.js';
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 
 const app = express();
@@ -54,7 +55,7 @@ app.use("/api/admin", adminOrderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/wishlist", wishlistRoutes);
-
+app.use("/api/notifications", notificationRoutes);
 /* app.use("*", (req, res) => {
 
     res.status(404).json({

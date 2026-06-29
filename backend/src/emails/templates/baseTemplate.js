@@ -61,19 +61,19 @@ box-shadow:0 8px 25px rgba(0,0,0,.08);
 
 <td
 style="
-background:${emailBrand.colors.dark};
-padding:30px;
+background:#171717;
+padding:45px;
 text-align:center;
 ">
 
 <h1
 style="
 margin:0;
-font-size:34px;
-font-weight:bold;
+font-size:42px;
+letter-spacing:3px;
 ">
 
-<span style="color:${emailBrand.colors.primary};">
+<span style="color:#F15A24;">
 SOLE
 </span>
 
@@ -85,12 +85,20 @@ STREET
 
 <p
 style="
-color:#cccccc;
-margin-top:8px;
-font-size:14px;
+margin-top:12px;
+color:#d8d8d8;
+font-size:16px;
 ">
 
-Premium Sneakers • Authentic Brands
+Premium Sneakers
+
+&nbsp;•&nbsp;
+
+Authentic Brands
+
+&nbsp;•&nbsp;
+
+Fast Delivery
 
 </p>
 
@@ -107,10 +115,18 @@ style="
 padding:50px 45px;
 ">
 
+<div
+style="
+background:#ffffff;
+border:1px solid #eeeeee;
+border-radius:10px;
+padding:35px;
+">
+
 <h2
 style="
 margin-top:0;
-color:${emailBrand.colors.dark};
+color:#171717;
 ">
 
 ${heading}
@@ -119,12 +135,14 @@ ${heading}
 
 <div
 style="
-font-size:16px;
 line-height:1.8;
-color:#555;
+font-size:16px;
+color:#555555;
 ">
 
 ${body}
+
+</div>
 
 </div>
 
@@ -142,11 +160,13 @@ margin-top:40px;
 href="${buttonUrl}"
 
 style="
-background:${emailBrand.colors.primary};
+background:#F15A24;
 color:white;
-padding:16px 34px;
+padding:18px 40px;
 border-radius:40px;
 text-decoration:none;
+letter-spacing:0.5px;
+transition:all 0.2s ease;
 font-weight:bold;
 display:inline-block;
 ">
@@ -165,6 +185,7 @@ ${buttonText}
 
 </tr>
 
+
 <!-- Divider -->
 
 <tr>
@@ -176,6 +197,59 @@ style="
 border:none;
 border-top:1px solid #eeeeee;
 ">
+
+</td>
+
+</tr>
+
+<tr>
+
+<td
+style="
+padding:35px;
+background:#fffaf7;
+text-align:center;
+">
+
+<table
+width="100%"
+cellpadding="10">
+
+<tr>
+
+<td>
+
+🚚
+
+<br><br>
+
+<strong>Fast Delivery</strong>
+
+</td>
+
+<td>
+
+🔄
+
+<br><br>
+
+<strong>Easy Returns</strong>
+
+</td>
+
+<td>
+
+🔒
+
+<br><br>
+
+<strong>Secure Checkout</strong>
+
+</td>
+
+</tr>
+
+</table>
 
 </td>
 

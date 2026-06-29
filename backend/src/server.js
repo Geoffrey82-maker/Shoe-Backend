@@ -5,6 +5,9 @@ import connectDB from "./config/db.js";
 import cloudinaryHealthCheck from "./config/cloudinaryHealthCheck.js";
 import errorHandler from "./middleware/errorHandler.js";
 import logger from "./utils/logger.js";
+import http from "http";
+
+import { initSocket } from "./socket/socket.js";
 
 //----- Load environment variables
 
@@ -17,8 +20,10 @@ const startServer = async() => {
         await cloudinaryHealthCheck();
 
         const PORT = process.env.PORT || 3500;
+        const server = http.createServer(app);
+        initSocket(server);
         app.use(errorHandler);
-        app.listen(PORT, () => {
+        server.listen(PORT, () => {
             logger.info(`Server running on port ${PORT}`);
         });
 
