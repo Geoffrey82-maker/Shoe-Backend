@@ -5,6 +5,7 @@ import Product from "../models/Product.js";
 import axios from "axios";
 import generateAccessToken from "../config/mpesa.js";
 import generateToken from "../utils/generateToken.js";
+import { adjustInventory } from "../services/inventoryService.js";
 
 const completeOrder = async (
     order,
@@ -25,34 +26,37 @@ const completeOrder = async (
 
     for (const item of order.items) {
 
-        const updated =
-            await Product.findOneAndUpdate(
-                {
-                    _id: item.product,
-                    stock: {
-                        $gte: item.quantity
-                    }
-                },
-                {
-                    $inc: {
-                        stock: -item.quantity
-                    }
-                }
-            );
+        const product = await Product.findById(item.product);
 
-        if (!updated) {
+        if (!product) {
 
             order.orderStatus = "on_hold";
 
             await order.save();
 
-            console.error(
-            `Order ${order.orderNumber} placed on hold because stock was unavailable.`
-            );
+            return false;
+
+        }
+
+        if (product.stock < item.quantity) {
+
+            order.orderStatus = "on_hold";
+
+            await order.save();
 
             return false;
 
         }
+
+        await adjustInventory({
+
+            productId: item.product,
+
+            quantity: -item.quantity,
+
+            reason: "sale"
+
+        });
 
     }
 

@@ -9,7 +9,10 @@ import {
     getRecentOrders,  
     getLowStockProducts, 
     getBestSellingProduct, 
-    getMonthlySales 
+    getMonthlySales,
+    restockProduct,
+    adjustProductInventory,
+    getInventoryHistory
 } from "../controllers/adminController.js";
 
 import validate from "../middleware/validationMiddlware.js";
@@ -81,6 +84,43 @@ router.put(
     updatePaymentStatusValidator,
     validate,
     updatePaymentStatus
+);
+
+// Inventory management routes
+router.put(
+
+    "/products/:id/restock",
+
+    protect,
+
+    admin,
+
+    restockProduct
+
+);
+
+router.put(
+
+    "/products/:id/inventory",
+
+    protect,
+
+    admin,
+
+    adjustProductInventory
+
+);
+
+router.get(
+
+    "/products/:id/history",
+
+    protect,
+
+    admin,
+
+    getInventoryHistory
+
 );
 
 export default router;

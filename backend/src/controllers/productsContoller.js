@@ -1,6 +1,9 @@
 import Product from '../models/Product.js';
 import APIFeatures from '../utils/apiFeatures.js';
 import cloudinary from "../config/cloudinary.js";
+import {
+    notifyPriceDrop
+}from "../services/wishlistService.js";
 
 export const createProduct = async (req, res) => {
     try {
@@ -162,6 +165,16 @@ export const updateProduct = async (req, res) => {
             product.isActive = isActive;
 
         await product.save();
+
+        await notifyPriceDrop(product);
+
+        res.status(200).json({
+
+            success: true,
+
+            product
+
+        });
 
         res.status(200).json({
             success: true,

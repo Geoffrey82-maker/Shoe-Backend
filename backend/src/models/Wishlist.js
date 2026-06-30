@@ -6,13 +6,30 @@ new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
-        required: true
+        required: true,
+        unique: true
     },
 
-    products: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Product"
-    }]
+    priceWhenAdded: {
+
+            type: Number,
+
+            required: true
+
+    },
+
+    products: [
+        {
+            product: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Product"
+            },
+            addedAt: {
+                type: Date,
+                default: Date.now
+            }
+        }
+    ]
 }, { timestamps: true });
 
 export default mongoose.model(

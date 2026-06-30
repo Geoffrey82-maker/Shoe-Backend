@@ -1,11 +1,61 @@
 import express from "express";
+
 import protect from "../middleware/authMiddleware.js";
-import { addToWishlist, getWishlist } from "../controllers/wishlistController.js";
+
+import {
+
+    addToWishlist,
+
+    removeFromWishlist,
+
+    getWishlist,
+
+    getWishlistCount
+
+}
+
+from "../controllers/wishlistController.js";
 
 const router = express.Router();
 
-router.post("/", protect, addToWishlist);
+router.get(
 
-router.get("/", protect, getWishlist);
+    "/",
+
+    protect,
+
+    getWishlist
+
+);
+
+router.get(
+
+    "/count",
+
+    protect,
+
+    getWishlistCount
+
+);
+
+router.post(
+
+    "/:productId",
+
+    protect,
+
+    addToWishlist
+
+);
+
+router.delete(
+
+    "/:productId",
+
+    protect,
+
+    removeFromWishlist
+
+);
 
 export default router;
