@@ -2,9 +2,9 @@ import Product from "../models/Product.js";
 
 import InventoryHistory from "../models/InventoryHistory.js";
 
-import { createNotification }
+import { createNotification } from "../notifications/notificationService.js";
 
-from "../notifications/notificationService.js";
+import { notifyBackInStock }from "./wishlistService.js";
 
 export const adjustInventory = async ({
 
@@ -35,6 +35,8 @@ export const adjustInventory = async ({
     }
 
     const previousStock = product.stock;
+
+    const previousStatus = product.status;
 
     product.stock += quantity;
 
@@ -69,6 +71,18 @@ export const adjustInventory = async ({
     }
 
     await product.save();
+
+    if (
+
+        previousStatus === "out_of_stock" &&
+
+        product.status === "in_stock"
+
+    ) {
+
+        await notifyBackInStock(product);
+
+    }
 
     await InventoryHistory.create({
 

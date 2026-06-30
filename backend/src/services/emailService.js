@@ -3,6 +3,7 @@ import orderConfirmationTemplate
 from "../emails/templates/orderConfirmationTemplate.js";
 import passwordResetTemplate
 from "../emails/templates/passwordResetTemplate.js";
+import backInStockTemplate from "../emails/templates/backInStockTemplate.js";
 
 
 export const sendOrderConfirmationEmail = async (user, order) => {
@@ -50,3 +51,32 @@ async({user, resetUrl})=>{
 
 };
 
+export const sendBackInStockEmail = async (
+
+    email,
+
+    firstname,
+
+    product
+
+) => {
+
+    await transporter.sendMail({
+
+        from: `"SoleStreet" <${process.env.EMAIL_USER}>`,
+
+        to: email,
+
+        subject: `${product.name} is Back in Stock!`,
+
+        html: backInStockTemplate({
+
+            firstname,
+
+            product
+
+        })
+
+    });
+
+};

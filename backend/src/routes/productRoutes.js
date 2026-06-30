@@ -24,6 +24,11 @@ import { reviewValidation } from "../validators/reviewValidator.js";
 const router = express.Router();
 
 router.get('/', getProducts);
+
+router.get(
+    "/:id/related",
+    getRelatedProducts
+);
     
 router.post(
     '/', 

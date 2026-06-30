@@ -164,6 +164,23 @@ const productSchema = new mongoose.Schema(
             type: String,
             required: true
         },
+
+        brand: {
+
+            type: String,
+
+            required: true,
+
+            trim: true
+
+        },
+
+        colors: [
+            {
+                type: String
+            }
+        ],
+
         images: [
             {
                 url: {
@@ -210,5 +227,17 @@ const productSchema = new mongoose.Schema(
 );
 
 const Product = mongoose.model("Product", productSchema);
+
+productSchema.index({
+
+    name: "text",
+
+    description: "text",
+
+    brand: "text",
+
+    category: "text"
+
+});
 
 export default Product;

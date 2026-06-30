@@ -8,17 +8,116 @@ import {
 export const createProduct = async (req, res) => {
     try {
         const {
-            name, 
-            description,
-            brand,
+            keyword,
             category,
-            price,
-            discountPrice,
-            stock,
-            sizes,
-            colors,
-            featured
-        } = req.body;
+            brand,
+            size,
+            color,
+            minPrice,
+            maxPrice,
+            minRating,
+            sort,
+            page = 1,
+            limit = 12
+        } = req.query;
+
+        const filter = {
+            isActive: true
+        };
+
+        if (keyword) {
+
+            filter.$text = {
+                $search: keyword
+            };
+        }
+
+        if (category) {
+            filter.category = category;
+        }
+
+        if (brand) {
+            filter.brand = brand;
+        }
+
+        if (size) {
+            filter.sizes = size;
+        }
+
+        if (color) {
+            filter.colors = color;
+        }
+
+        if (minPrice || maxPrice) {
+
+            filter.price = {};
+
+            if (minPrice) filter.price.$gte = Number(minPrice);
+
+            if (maxPrice) filter.price.$lte = Number(maxPrice);
+
+        }
+
+        if (minRating) {
+
+            filter.averageRating = {
+                $gte: Number(minRating)
+            };
+
+        }
+
+        let sortOption = { createdAt:-1 };
+
+        switch(sort){
+
+            case "price_asc":
+
+            sortOption={price:1};
+
+            break;
+
+            case "price_desc":
+
+            sortOption={price:-1};
+
+            break;
+
+            case "rating":
+
+            sortOption={averageRating:-1};
+
+            break;
+
+            case "popular":
+
+            sortOption={numReviews:-1};
+
+            break;
+
+            case "newest":
+
+            sortOption={createdAt:-1};
+
+            break;
+
+        }
+
+        const skip = (page-1)*limit;
+
+        const products = await Product.find(filter)
+            .sort(sortOption)
+            .skip(skip)
+            .limit(Number(limit));
+
+        const total = await Product.countDocuments(filter);
+
+        res.json({
+            success:true,
+            products,
+            page:Number(page),
+            pages:Math.ceil(total/limit),
+            total
+        });
 
         if (
             discountPrice &&
@@ -682,6 +781,65 @@ export const voteReviewHelpful = async (req, res) => {
             success: false,
 
             message: error.message
+
+        });
+
+    }
+
+};
+
+export const getRelatedProducts = async(req,res)=>{
+
+    try{
+
+        const product=
+
+        await Product.findById(
+
+        req.params.id
+
+        );
+
+        if(!product){
+
+        return res.status(404).json({
+
+        success:false
+
+        });
+
+        }
+
+        const related=
+
+        await Product.find({
+            _id:{
+                $ne:product._id
+            },
+
+            category:product.category,
+
+            isActive:true
+
+        }).limit(8);
+
+        res.json({
+
+            success:true,
+
+            related
+
+        });
+
+    }catch(error){
+
+        console.error(error);
+
+        res.status(500).json({
+
+            success:false,
+
+            message:error.message
 
         });
 
