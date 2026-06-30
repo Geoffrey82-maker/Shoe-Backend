@@ -8,6 +8,8 @@ import logger from "./utils/logger.js";
 import http from "http";
 
 import { initSocket } from "./socket/socket.js";
+import cron from "node-cron";
+import { abandonedCartJob } from "./jobs/abandonedCartJob.js";
 
 //----- Load environment variables
 
@@ -20,6 +22,11 @@ const startServer = async() => {
         await cloudinaryHealthCheck();
 
         const PORT = process.env.PORT || 3500;
+        cron.schedule(
+            "0 * * * *",
+            async()=>{
+                await abandonedCartJob();
+        });
         const server = http.createServer(app);
         initSocket(server);
         app.use(errorHandler);

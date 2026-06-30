@@ -10,7 +10,9 @@ import {
     createReview,
     deleteReview,
     updateReview,
-    voteReviewHelpful } from "../controllers/productsContoller.js";
+    voteReviewHelpful,
+    getRelatedProducts
+} from "../controllers/productsContoller.js";
 
 import { productValidation } from "../validators/productValidator.js";
 

@@ -4,7 +4,7 @@ from "../emails/templates/orderConfirmationTemplate.js";
 import passwordResetTemplate
 from "../emails/templates/passwordResetTemplate.js";
 import backInStockTemplate from "../emails/templates/backInStockTemplate.js";
-
+import abandonedCartTemplate from "../emails/templates/abandonedCartTemplate.js";
 
 export const sendOrderConfirmationEmail = async (user, order) => {
     await transporter.sendMail({
@@ -62,7 +62,7 @@ export const sendBackInStockEmail = async (
 ) => {
 
     await transporter.sendMail({
-
+        
         from: `"SoleStreet" <${process.env.EMAIL_USER}>`,
 
         to: email,
@@ -79,4 +79,24 @@ export const sendBackInStockEmail = async (
 
     });
 
+};
+
+export const sendAbandonedCartEmail = async (user,cart)=>{
+
+    await transporter.sendMail({
+
+        from:`"SoleStreet" <${process.env.EMAIL_USER}>`,
+
+        to:user.email,
+
+        subject:"You left something behind 👟",
+
+        html:abandonedCartTemplate({
+
+            firstname:user.firstname,
+            cart,
+            cartUrl: `${process.env.FRONTEND_URL}/cart`
+
+        })
+    });
 };

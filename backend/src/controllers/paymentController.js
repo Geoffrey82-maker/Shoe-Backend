@@ -76,6 +76,7 @@ const completeOrder = async (
         );
     }
 
+    cart.recovered=true;
 
     await Cart.findOneAndDelete({
         user: order.user

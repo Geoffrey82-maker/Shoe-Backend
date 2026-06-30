@@ -17,6 +17,7 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import marketingRoutes from "./routes/marketingRoutes.js";
 import campaignRoutes from "./routes/campaignRoutes.js";
 import recentRoutes from "./routes/recentRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
 
 const app = express();
 
@@ -61,7 +62,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/marketing",marketingRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/recent", recentRoutes);
-
+app.use("/api/chat", chatRoutes);
 
 /* app.use("*", (req, res) => {
 

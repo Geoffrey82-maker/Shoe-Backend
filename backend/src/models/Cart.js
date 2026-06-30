@@ -28,6 +28,22 @@ const cartItemSchema = new mongoose.Schema({
     price: {
         type: Number,
         required: true
+    },
+
+    lastReminderSent: {
+
+        type: Date,
+
+        default: null
+
+    },
+
+    recovered: {
+
+        type: Boolean,
+
+        default: false
+
     }
 
 });

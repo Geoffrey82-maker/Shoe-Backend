@@ -10,6 +10,7 @@ export default defineConfig({
         target: 'http://localhost:3500',
         changeOrigin: true,
       },
+      allowedHosts: ['uneven-omnivore-lumpiness.ngrok-free.dev'],
     },
   },
   build: {
