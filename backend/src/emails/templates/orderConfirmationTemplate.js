@@ -9,9 +9,7 @@ const orderConfirmationTemplate = ({
 }) => {
 
     const body = `
-        <p>
-            Hi <strong>${firstname}</strong>,
-        </p>
+        <p>Hi <strong>${firstname}</strong>,</p>
 
         <p>
             Thank you for shopping with <strong>SoleStreet</strong>.

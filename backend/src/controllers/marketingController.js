@@ -15,11 +15,8 @@ export const subscribe = async (
     try {
 
         const {
-
             email,
-
             firstname
-
         } = req.body;
 
         const exists =
@@ -30,12 +27,9 @@ export const subscribe = async (
         if (exists) {
 
             return res.status(400).json({
-
                 success: false,
-
                 message:
                     "You are already subscribed."
-
             });
 
         }
@@ -72,11 +66,8 @@ export const subscribe = async (
         console.error(error);
 
         res.status(500).json({
-
             success: false,
-
             message: error.message
-
         });
 
     }
@@ -88,17 +79,13 @@ export const verifySubscription = async (req, res) => {
     try {
 
         const subscriber = await Subscriber.findOne({
-
             verificationToken: req.params.token
-
         });
 
         if (!subscriber) {
 
             return res.status(404).json({
-
                 success: false,
-
                 message: "Invalid verification link."
 
             });
@@ -108,11 +95,8 @@ export const verifySubscription = async (req, res) => {
         if (subscriber.isVerified) {
 
             return res.status(400).json({
-
                 success: false,
-
                 message: "Subscription already verified."
-
             });
 
         }
@@ -139,11 +123,8 @@ export const verifySubscription = async (req, res) => {
         console.error(error);
 
         res.status(500).json({
-
             success: false,
-
             message: error.message
-
         });
 
     }

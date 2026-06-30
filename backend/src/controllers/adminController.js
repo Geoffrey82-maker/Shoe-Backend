@@ -359,29 +359,21 @@ export const restockProduct = async (req, res) => {
     try {
 
         const {
-
             quantity
-
         } = req.body;
 
         const product = await adjustInventory({
 
             productId: req.params.id,
-
             quantity: Number(quantity),
-
             reason: "restock",
-
             performedBy: req.user._id
 
         });
 
         res.status(200).json({
-
             success: true,
-
             message: "Product restocked.",
-
             product
 
         });
@@ -393,9 +385,7 @@ export const restockProduct = async (req, res) => {
         console.error(error);
 
         res.status(500).json({
-
             success: false,
-
             message: error.message
 
         });
@@ -409,31 +399,20 @@ export const adjustProductInventory = async (req, res) => {
     try {
 
         const {
-
             quantity,
-
             reason
-
         } = req.body;
 
         const product = await adjustInventory({
-
             productId: req.params.id,
-
             quantity: Number(quantity),
-
             reason,
-
             performedBy: req.user._id
-
         });
 
         res.status(200).json({
-
             success: true,
-
             product
-
         });
 
     }
@@ -459,45 +438,29 @@ export const getInventoryHistory = async (req, res) => {
     try {
 
         const history = await InventoryHistory.find({
-
             product: req.params.id
-
         })
-
         .populate(
-
             "performedBy",
-
             "firstname lastname"
-
         )
-
         .sort({
-
             createdAt: -1
-
         });
 
         res.status(200).json({
-
             success: true,
-
             history
-
         });
 
     }
 
     catch (error) {
-
         console.error(error);
 
         res.status(500).json({
-
             success: false,
-
             message: error.message
-
         });
 
     }

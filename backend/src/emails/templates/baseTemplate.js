@@ -23,343 +23,134 @@ const baseTemplate = ({
 
 </head>
 
-<body
-style="
-margin:0;
-padding:0;
-background:${emailBrand.colors.light};
-font-family:Arial, Helvetica, sans-serif;
-">
-
-<table
-width="100%"
-cellpadding="0"
-cellspacing="0"
-style="
-background:${emailBrand.colors.light};
-padding:40px 0;
-">
-
-<tr>
-
-<td align="center">
+<body style="margin:0;padding:0;background:${emailBrand.colors.light};font-family:Arial, Helvetica, sans-serif;">
 
-<table
-width="650"
-cellpadding="0"
-cellspacing="0"
-style="
-background:#ffffff;
-border-radius:12px;
-overflow:hidden;
-box-shadow:0 8px 25px rgba(0,0,0,.08);
-">
-
-<!-- Header -->
-
-<tr>
-
-<td
-style="
-background:#171717;
-padding:45px;
-text-align:center;
-">
-
-<h1
-style="
-margin:0;
-font-size:42px;
-letter-spacing:3px;
-">
-
-<span style="color:#F15A24;">
-SOLE
-</span>
-
-<span style="color:white;">
-STREET
-</span>
-
-</h1>
-
-<p
-style="
-margin-top:12px;
-color:#d8d8d8;
-font-size:16px;
-">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${emailBrand.colors.light};padding:40px 0;">
 
-Premium Sneakers
+        <tr>
 
-&nbsp;•&nbsp;
+            <td align="center">
 
-Authentic Brands
+                <table width="650" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,.08);">
 
-&nbsp;•&nbsp;
+                <!-- Header -->
 
-Fast Delivery
+                    <tr>
 
-</p>
+                        <td style="background:#171717;padding:45px;text-align:center;">
 
-</td>
+                            <h1 style="margin:0;font-size:42px;letter-spacing:3px;"><span style="color:#F15A24;">SOLE</span><span style="color:white;">STREET</span></h1>
+                            <p style="margin-top:12px;color:#d8d8d8;font-size:16px;">Premium Sneakers&nbsp;•&nbsp;Authentic Brands&nbsp;•&nbsp;Fast Delivery</p>
+                        </td>
 
-</tr>
+                    </tr>
 
-<!-- Content -->
+                    <!-- Content -->
 
-<tr>
+                    <tr>
 
-<td
-style="
-padding:50px 45px;
-">
+                        <td style="padding:50px 45px;">
+                            <div style="background:#ffffff;border:1px solid #eeeeee;border-radius:10px;padding:35px;">
 
-<div
-style="
-background:#ffffff;
-border:1px solid #eeeeee;
-border-radius:10px;
-padding:35px;
-">
+                                <h2 style="margin-top:0;color:#171717;">${heading}</h2>
 
-<h2
-style="
-margin-top:0;
-color:#171717;
-">
+                                <div style="line-height:1.8;font-size:16px;color:#555555;">${body}</div>
 
-${heading}
+                            </div>
+                            ${buttonText? `
 
-</h2>
+                            <div style="text-align:center;margin-top:40px;">
 
-<div
-style="
-line-height:1.8;
-font-size:16px;
-color:#555555;
-">
+                                <a href="${buttonUrl}" style="background:#F15A24;color:white;padding:18px 40px;border-radius:40px;text-decoration:none;letter-spacing:0.5px;transition:all 0.2s ease;font-weight:bold;display:inline-block;">
+                                    ${buttonText}
+                                </a>
 
-${body}
+                            </div>
 
-</div>
+                            `:""}
 
-</div>
+                        </td>
 
-${
-buttonText
-?
-`
-<div
-style="
-text-align:center;
-margin-top:40px;
-">
+                    </tr>
 
-<a
-href="${buttonUrl}"
+            <!-- Divider -->
 
-style="
-background:#F15A24;
-color:white;
-padding:18px 40px;
-border-radius:40px;
-text-decoration:none;
-letter-spacing:0.5px;
-transition:all 0.2s ease;
-font-weight:bold;
-display:inline-block;
-">
+                    <tr>
+                        <td>
+                            <hr style="border:none;border-top:1px solid #eeeeee;">
+                        </td>
+                    </tr>
 
-${buttonText}
+                    <tr>
 
-</a>
+                        <td style="padding:35px;background:#fffaf7;text-align:center;">
 
-</div>
-`
-:
-""
-}
+                            <table width="100%" cellpadding="10">
 
-</td>
+                                <tr>
 
-</tr>
+                                    <td>🚚<br><br><strong>Fast Delivery</strong></td>
 
+                                    <td>🔄<br><br><strong>Easy Returns</strong></td>
 
-<!-- Divider -->
+                                    <td>🔒<br><br><strong>Secure Checkout</strong></td>
 
-<tr>
+                                </tr>
 
-<td>
+                            </table>
 
-<hr
-style="
-border:none;
-border-top:1px solid #eeeeee;
-">
+                        </td>
 
-</td>
+                    </tr>
 
-</tr>
+                    <!-- Footer -->
 
-<tr>
+                    <tr>
 
-<td
-style="
-padding:35px;
-background:#fffaf7;
-text-align:center;
-">
+                        <td style="padding:35px;background:#fafafa;text-align:center;">
 
-<table
-width="100%"
-cellpadding="10">
+                            <p style="margin:0;font-size:14px;color:#777;">Need help?</p>
 
-<tr>
+                                <p style="margin:8px 0;">
 
-<td>
+                                    <a href="mailto:${emailBrand.supportEmail} "style="color:${emailBrand.colors.primary};text-decoration:none;">
 
-🚚
+                                        ${emailBrand.supportEmail}
 
-<br><br>
+                                    </a>
 
-<strong>Fast Delivery</strong>
+                                </p>
 
-</td>
+                            <div style="margin:20px 0;">
 
-<td>
+                                <a href="${emailBrand.website} "style="margin:0 10px;color:${emailBrand.colors.primary};text-decoration:none;">Website</a>
 
-🔄
+                                <a href="${emailBrand.instagram}"style="margin:0 10px;color:${emailBrand.colors.primary};text-decoration:none;">Instagram</a>
 
-<br><br>
+                                <a href="${emailBrand.facebook}"style="margin:0 10px;color:${emailBrand.colors.primary};">Facebook</a>
 
-<strong>Easy Returns</strong>
+                            </div>
 
-</td>
+                            <p style="margin-top:25px;font-size:12px;color:#999;">
 
-<td>
+                                © ${new Date().getFullYear()}
+                                ${emailBrand.company}
 
-🔒
+                                All rights reserved.
 
-<br><br>
+                            </p>
 
-<strong>Secure Checkout</strong>
+                        </td>
 
-</td>
+                    </tr>
 
-</tr>
+                </table>
 
-</table>
+            </td>
 
-</td>
+        </tr>
 
-</tr>
-
-<!-- Footer -->
-
-<tr>
-
-<td
-style="
-padding:35px;
-background:#fafafa;
-text-align:center;
-">
-
-<p
-style="
-margin:0;
-font-size:14px;
-color:#777;
-">
-
-Need help?
-
-</p>
-
-<p
-style="
-margin:8px 0;
-">
-
-<a
-href="mailto:${emailBrand.supportEmail}"
-style="
-color:${emailBrand.colors.primary};
-text-decoration:none;
-">
-
-${emailBrand.supportEmail}
-
-</a>
-
-</p>
-
-<div style="margin:20px 0;">
-
-<a
-href="${emailBrand.website}"
-style="
-margin:0 10px;
-color:${emailBrand.colors.primary};
-text-decoration:none;
-">
-
-Website
-
-</a>
-
-<a
-href="${emailBrand.instagram}"
-style="
-margin:0 10px;
-color:${emailBrand.colors.primary};
-text-decoration:none;
-">
-
-Instagram
-
-</a>
-
-<a
-href="${emailBrand.facebook}"
-style="
-margin:0 10px;
-color:${emailBrand.colors.primary};
-text-decoration:none;
-">
-
-Facebook
-
-</a>
-
-</div>
-
-<p
-style="
-margin-top:25px;
-font-size:12px;
-color:#999;
-">
-
-© ${new Date().getFullYear()}
-${emailBrand.company}
-
-All rights reserved.
-
-</p>
-
-</td>
-
-</tr>
-
-</table>
-
-</td>
-
-</tr>
-
-</table>
+    </table>
 
 </body>
 

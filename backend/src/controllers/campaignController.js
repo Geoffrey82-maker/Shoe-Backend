@@ -122,22 +122,16 @@ export const sendCampaign = async (req, res) => {
         }
 
         const subscribers = await Subscriber.find({
-
             isVerified: true
-
         });
 
         await Promise.all(
-
             subscribers.map(subscriber =>
-
                 sendCampaignEmail(
                     subscriber,
                     campaign
                 )
-
             )
-
         );
         campaign.sent = true;
 

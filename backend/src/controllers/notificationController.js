@@ -28,9 +28,7 @@ export const getNotifications = async (req, res) => {
         console.error(error);
 
         res.status(500).json({
-
             success: false,
-
             message: error.message
 
         });
@@ -39,56 +37,37 @@ export const getNotifications = async (req, res) => {
 
 };
 
-export const markRead = async (
-    req,
-    res
-) => {
+export const markRead = async (req,res) => {
 
-    await Notification.findByIdAndUpdate(
-
-        req.params.id,
+    await Notification.findByIdAndUpdate(req.params.id,
 
         {
-
             isRead: true
-
         }
-
     );
 
     res.json({
-
         success: true
-
     });
 
 };
 
-export const markAllRead = async (
-    req,
-    res
-) => {
+export const markAllRead = async (req,res) => {
 
     await Notification.updateMany(
 
         {
-
             user: req.user._id
-
         },
 
         {
-
             isRead: true
-
         }
 
     );
 
     res.json({
-
         success: true
-
     });
 
 };

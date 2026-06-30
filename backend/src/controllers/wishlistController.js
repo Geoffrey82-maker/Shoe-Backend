@@ -54,9 +54,7 @@ export const addToWishlist = async (req, res) => {
         if (exists) {
 
             return res.status(400).json({
-
                 success: false,
-
                 message: "Already in wishlist."
 
             });
@@ -64,11 +62,8 @@ export const addToWishlist = async (req, res) => {
         }
 
         wishlist.products.push({
-
             product: product._id,
-
             priceWhenAdded: product.price
-
         });
 
         await wishlist.save();
