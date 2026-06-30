@@ -10,7 +10,7 @@ export const createOrder = async (req, res) => {
     let session;
     try {
 
-        const session = await mongoose.startSession();
+        session = await mongoose.startSession();
 
         session.startTransaction();
 
@@ -51,40 +51,6 @@ export const createOrder = async (req, res) => {
 
         let discountAmount = 0;
 
-        if (couponCode) {
-
-            const coupon = await Coupon.findOne({
-                code: couponCode.trim().toUpperCase(),
-                isActive: true
-            });
-
-            if (!coupon) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Invalid coupon"
-                });
-            }
-
-            if (coupon.expiresAt < new Date()) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Coupon expired"
-                });
-            }
-
-            if (coupon.discountType === "percentage") {
-
-                discountAmount =
-                    subtotal *
-                    (coupon.discountValue / 100);
-
-            } else {
-
-                discountAmount =
-                    coupon.discountValue;
-            }
-        }
-
         const totalAmount = Math.max(
             subtotal +
             shippingFee -
@@ -119,13 +85,72 @@ export const createOrder = async (req, res) => {
 
         }
 
+        if (couponCode) {
+
+            const coupon = await Coupon.findOne({
+                code: couponCode.trim().toUpperCase(),
+                isActive: true
+            });
+
+            if (!coupon) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid coupon"
+                });
+            }
+
+            if (coupon.expiresAt < new Date()) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Coupon expired"
+                });
+            }
+
+            if (coupon.discountType === "percentage") {
+
+                discountAmount =
+                    subtotal *
+                    (coupon.discountValue / 100);
+
+            } else {
+
+                discountAmount =
+                    coupon.discountValue;
+            }
+        }
+
+
         const order = await Order.create(
             [{
                 orderNumber,
 
                 user: req.user._id,
 
-                items: cart.items,
+                items: await Promise.all(
+                    cart.items.map(async (item) => {
+                        const product = await Product.findById(item.product);
+                        
+                        console.log(product.images);
+
+                        return {
+
+                            product: product._id,
+
+                            name: product.name,
+
+                            image: product.images[0]?.url || "",
+
+                            size: item.size,
+
+                            color: item.color,
+
+                            quantity: item.quantity,
+
+                            price: product.price
+
+                        };
+                    })
+                ),
 
                 shippingAddress,
 
@@ -148,6 +173,7 @@ export const createOrder = async (req, res) => {
         );
 
         const createdOrder = order[0];
+
         for (const item of cart.items) {
 
             await Product.findByIdAndUpdate(
@@ -164,9 +190,8 @@ export const createOrder = async (req, res) => {
 
         }
 
-        
-
         if (
+            coupon &&
             coupon.usageLimit &&
             coupon.usedCount >= coupon.usageLimit
         ) {
@@ -184,11 +209,8 @@ export const createOrder = async (req, res) => {
         try {
 
             await sendOrderConfirmationEmail({
-
                 user: req.user,
-
                 order
-
             });
             
         }catch(emailError) {
@@ -212,11 +234,8 @@ export const createOrder = async (req, res) => {
     }catch (error) {
 
         if (session) {
-
             await session.abortTransaction();
-
             session.endSession();
-
         }
 
         console.error(error);
