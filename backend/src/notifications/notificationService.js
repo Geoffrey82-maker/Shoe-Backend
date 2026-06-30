@@ -1,10 +1,9 @@
-import Notification
-from "../models/Notification.js";
+import Notification from "../models/Notification.js";
 import { getIO } from "../socket/socket.js";
 
 export const createNotification = async ({
 
-    user,
+    user = null,
 
     title,
 
@@ -14,7 +13,9 @@ export const createNotification = async ({
 
     icon = "bell",
 
-    actionUrl = null
+    actionUrl = null,
+
+    metadata = {}
 
 }) => {
 
@@ -30,15 +31,25 @@ export const createNotification = async ({
 
         icon,
 
-        actionUrl
+        actionUrl,
+
+        metadata
 
     });
 
-    getIO()
+    const io = getIO();
 
-    .to(user.toString())
+    // User-specific notification
+    if (user) {
 
-    .emit("notification", notification);
+        io.to(user.toString())
+            .emit("notification", notification);
+
+    }
+
+    // Admin notification
+    io.emit("admin-notification", notification);
+
+    return notification;
 
 };
-

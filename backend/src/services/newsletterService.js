@@ -6,6 +6,8 @@ import verificationTemplate
 import welcomeTemplate
     from "../emails/templates/welcomeTemplate.js";
 
+import newsletterTemplate from "../emails/templates/newsletterTemplate.js";
+
 export const sendVerificationEmail = async (
     subscriber
 ) => {
@@ -52,6 +54,38 @@ export const sendWelcomeEmail = async (
         html: welcomeTemplate({
 
             firstname: subscriber.firstname
+
+        })
+
+    });
+
+};
+
+export const sendCampaignEmail = async (
+
+    subscriber,
+
+    campaign
+
+) => {
+
+    await transporter.sendMail({
+
+        from: `"SoleStreet" <${process.env.EMAIL_USER}>`,
+
+        to: subscriber.email,
+
+        subject: campaign.subject,
+
+        html: newsletterTemplate({
+
+            title: campaign.title,
+
+            body: campaign.content,
+
+            buttonText: campaign.buttonText,
+
+            buttonUrl: campaign.buttonUrl
 
         })
 

@@ -40,7 +40,12 @@ const notificationSchema = new mongoose.Schema({
         default: false
     },
 
-    actionUrl: String
+    actionUrl: String,
+
+    metadata: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+    }
 
 }, {
     timestamps: true

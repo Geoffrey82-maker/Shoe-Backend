@@ -1,31 +1,41 @@
 import Notification
 from "../models/Notification.js";
 
-export const getNotifications = async (
-    req,
-    res
-) => {
+export const getNotifications = async (req, res) => {
 
-    const notifications =
-        await Notification.find({
+    try {
+
+        const notifications = await Notification.find({
 
             user: req.user._id
 
-        })
-
-        .sort({
+        }).sort({
 
             createdAt: -1
 
         });
 
-    res.json({
+        res.json({
 
-        success: true,
+            success: true,
 
-        notifications
+            notifications
 
-    });
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
 
 };
 

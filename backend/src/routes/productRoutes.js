@@ -7,7 +7,10 @@ import {
     getProducts,
     getProductById,
     getProductBySlug, 
-    createReview } from "../controllers/productsContoller.js";
+    createReview,
+    deleteReview,
+    updateReview,
+    voteReviewHelpful } from "../controllers/productsContoller.js";
 
 import { productValidation } from "../validators/productValidator.js";
 
@@ -33,9 +36,32 @@ router.post(
 router.post(
     "/:id/reviews",
     protect,
+    upload.array("images", 5),
     reviewValidation,
     validate,
     createReview
+);
+
+router.put(
+    "/:productId/reviews/:reviewId",
+    protect,
+    updateReview
+);
+
+router.put(
+
+    "/:productId/reviews/:reviewId/helpful",
+
+    protect,
+
+    voteReviewHelpful
+
+);
+
+router.delete(
+    "/:productId/reviews/:reviewId",
+    protect,
+    deleteReview
 );
 
 router.put(

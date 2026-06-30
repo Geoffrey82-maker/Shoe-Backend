@@ -14,7 +14,8 @@ import couponRoutes from "./routes/couponRoutes.js"
 import wishlistRoutes from "./routes/wishlistRoutes.js";
 import errorHandler from './middleware/errorHandler.js';
 import notificationRoutes from "./routes/notificationRoutes.js";
-
+import marketingRoutes from "./routes/marketingRoutes.js";
+import campaignRoutes from "./routes/campaignRoutes.js";
 
 const app = express();
 
@@ -56,6 +57,10 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/marketing",marketingRoutes);
+app.use("/api/campaigns", campaignRoutes);
+
+
 /* app.use("*", (req, res) => {
 
     res.status(404).json({

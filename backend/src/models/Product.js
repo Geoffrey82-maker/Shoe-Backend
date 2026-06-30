@@ -19,10 +19,87 @@ const reviewSchema = new mongoose.Schema({
         max: 5
     },
 
+    verifiedPurchase: {
+        type: Boolean,
+        default: false
+    },
+    
+
     comment: {
         type: String,
         required: true
+    },
+
+    helpfulVotes: {
+
+        type: Number,
+
+        default: 0
+
+    },
+
+    votedUsers: [{
+
+        type: mongoose.Schema.Types.ObjectId,
+
+        ref: "User"
+
+    }],
+
+    helpfulVotes: {
+        type: Number,
+        default: 0
+    },
+
+    votedUsers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    }],
+
+    images: [
+
+        {
+
+            url: {
+
+                type: String
+
+            },
+
+            public_id: {
+
+                type: String
+
+            }
+
+        }
+
+    ],
+
+    isVisible: {
+
+        type: Boolean,
+
+        default: true
+
+    },
+
+    reply: {
+
+        message: String,
+
+        repliedBy: {
+
+            type: mongoose.Schema.Types.ObjectId,
+
+            ref: "User"
+
+        },
+
+        repliedAt: Date
+
     }
+
 }, { timestamps : true });
 
 const productSchema = new mongoose.Schema(
@@ -47,9 +124,41 @@ const productSchema = new mongoose.Schema(
             min: 0
         },
         stock: {
+
             type: Number,
+
             required: true,
-            default: 0
+
+            default: 0,
+
+            min: 0
+
+        },
+
+        lowStockThreshold: {
+
+            type: Number,
+
+            default: 5
+
+        },
+
+        status: {
+
+            type: String,
+
+            enum: [
+
+                "in_stock",
+
+                "low_stock",
+
+                "out_of_stock"
+
+            ],
+
+            default: "in_stock"
+
         },
         category: {
             type: String,

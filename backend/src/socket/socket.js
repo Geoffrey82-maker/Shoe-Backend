@@ -1,8 +1,10 @@
+import { Server } from "socket.io";
+
 let io;
 
 export const initSocket = (server) => {
 
-    io = require("socket.io")(server, {
+    io = new Server(server, {
 
         cors: {
 
@@ -14,11 +16,11 @@ export const initSocket = (server) => {
 
     });
 
-    io.on("connection", socket => {
+    io.on("connection", (socket) => {
 
         console.log("User Connected:", socket.id);
 
-        socket.on("join", userId => {
+        socket.on("join", (userId) => {
 
             socket.join(userId);
 
