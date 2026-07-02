@@ -248,8 +248,7 @@ export const resetPassword = async(req, res) => {
     });
 }
 
-export const uploadAvatar =
-async(req,res)=>{
+export const uploadAvatar = async(req,res)=>{
 
     if(!req.file){
 
@@ -284,8 +283,7 @@ async(req,res)=>{
 
 };
 
-export const getAddresses =
-async(req,res)=>{
+export const getAddresses = async(req,res)=>{
 
     const user =
         await User.findById(
@@ -303,8 +301,7 @@ async(req,res)=>{
 
 };
 
-export const addAddress =
-async(req,res)=>{
+export const addAddress = async(req,res)=>{
 
     const user =
         await User.findById(
@@ -328,8 +325,7 @@ async(req,res)=>{
 
 };
 
-export const deleteAddress =
-async(req,res)=>{
+export const deleteAddress = async(req,res)=>{
 
     const user =
         await User.findById(
@@ -360,8 +356,7 @@ async(req,res)=>{
 
 };
 
-export const updateAddress =
-async(req,res)=>{
+export const updateAddress = async(req,res)=>{
 
     const user =
         await User.findById(
@@ -422,8 +417,7 @@ async(req,res)=>{
 
 };
 
-export const setDefaultAddress =
-async(req,res)=>{
+export const setDefaultAddress = async(req,res)=>{
 
     const user =
         await User.findById(

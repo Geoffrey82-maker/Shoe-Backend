@@ -6,11 +6,25 @@ export const addToWishlist = async (req, res) => {
 
     try {
 
-        const product = await Product.findById(
+        if (!mongoose.Types.ObjectId.isValid(req.params.productId)) {
 
-            req.params.productId
+            return res.status(400).json({
 
-        );
+                success: false,
+
+                message: "Invalid product ID."
+
+            });
+
+        }
+
+        const product = await Product.findOne({
+
+            _id: req.params.productId,
+
+            isActive: true
+
+        });
 
         if (!product) {
 
@@ -73,7 +87,9 @@ export const addToWishlist = async (req, res) => {
 
             success: true,
 
-            message: "Added to wishlist."
+            message: "Added to wishlist.",
+
+            count: wishlist.products.length
 
         });
 
@@ -99,6 +115,18 @@ export const removeFromWishlist = async (req, res) => {
 
     try {
 
+        if (!mongoose.Types.ObjectId.isValid(req.params.productId)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid product ID."
+
+            });
+
+        }
+
         const wishlist = await Wishlist.findOne({
 
             user: req.user._id
@@ -117,15 +145,43 @@ export const removeFromWishlist = async (req, res) => {
 
         }
 
-        wishlist.products = wishlist.products.filter(
+        const originalCount = wishlist.products.length;
 
-            item =>
+        await Wishlist.findOneAndUpdate(
 
-                item.product.toString() !==
+        {
 
-                req.params.productId
+            user: req.user._id
 
-        );
+        },
+
+        {
+
+            $pull: {
+
+                products: {
+
+                    product: req.params.productId
+
+                }
+
+            }
+
+        }
+
+    );
+
+        if (wishlist.products.length === originalCount) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "Product not found in wishlist."
+
+            });
+
+        }
 
         await wishlist.save();
 
@@ -133,7 +189,9 @@ export const removeFromWishlist = async (req, res) => {
 
             success: true,
 
-            message: "Removed."
+            message: "Removed from wishlist.",
+
+            count: wishlist.products.length
 
         });
 
@@ -171,9 +229,31 @@ export const getWishlist = async (req, res) => {
 
         );
 
+        if (!wishlist) {
+
+            return res.status(200).json({
+
+                success: true,
+
+                count: 0,
+
+                wishlist: {
+
+                    products: []
+
+                }
+
+            });
+
+        }
+
+        wishlist.products = wishlist.products.filter(item => item.product);
+
         res.status(200).json({
 
             success: true,
+
+            count: wishlist.products.length,
 
             wishlist
 

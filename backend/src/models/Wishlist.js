@@ -18,18 +18,34 @@ new mongoose.Schema({
 
     },
 
+    priceWhenAdded: {
+
+        type: Number,
+
+        required: true
+
+    },
+
     products: [
         {
             product: {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: "Product"
+                ref: "Product",
+                required: true
             },
+
+            priceWhenAdded: {
+                type: Number,
+                required: true
+            },
+
             addedAt: {
                 type: Date,
                 default: Date.now
             }
         }
     ]
+    
 }, { timestamps: true });
 
 export default mongoose.model(

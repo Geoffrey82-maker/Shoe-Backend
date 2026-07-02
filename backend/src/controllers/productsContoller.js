@@ -4,121 +4,84 @@ import cloudinary from "../config/cloudinary.js";
 import {
     notifyPriceDrop
 }from "../services/wishlistService.js";
+import Wishlist from "../models/Wishlist.js";
+import Cart from "../models/Cart.js";
+
+export const getProducts = async (req, res) => {
+    try {
+        const resultPerPage = 12;
+
+        const apiFeatures = new APIFeatures(
+            Product.find({
+                isActive: true
+            }),
+            req.query
+        ).search().filter().sort().paginate(resultPerPage);
+
+        const products = await apiFeatures.query;
+
+        const total = await Product.countDocuments({
+
+            isActive: true
+
+        });
+
+        res.status(200).json({
+
+            success: true,
+
+            count: products.length,
+
+            page: Number(req.query.page) || 1,
+
+            pages: Math.ceil(
+
+                total / resultPerPage
+
+            ),
+
+            total,
+
+            products
+
+        });
+
+    }catch(error) {
+        console.log(error);
+        res.status(500).json({
+            success: false,
+            message : error.message
+        });
+    }
+};
 
 export const createProduct = async (req, res) => {
     try {
+
         const {
-            keyword,
-            category,
+
+            name,
+
+            description,
+
             brand,
-            size,
-            color,
-            minPrice,
-            maxPrice,
-            minRating,
-            sort,
-            page = 1,
-            limit = 12
-        } = req.query;
 
-        const filter = {
-            isActive: true
-        };
+            category,
 
-        if (keyword) {
+            price,
 
-            filter.$text = {
-                $search: keyword
-            };
-        }
+            discountPrice,
 
-        if (category) {
-            filter.category = category;
-        }
+            stock,
 
-        if (brand) {
-            filter.brand = brand;
-        }
+            sizes,
 
-        if (size) {
-            filter.sizes = size;
-        }
+            colors,
 
-        if (color) {
-            filter.colors = color;
-        }
+            featured
 
-        if (minPrice || maxPrice) {
-
-            filter.price = {};
-
-            if (minPrice) filter.price.$gte = Number(minPrice);
-
-            if (maxPrice) filter.price.$lte = Number(maxPrice);
-
-        }
-
-        if (minRating) {
-
-            filter.averageRating = {
-                $gte: Number(minRating)
-            };
-
-        }
-
-        let sortOption = { createdAt:-1 };
-
-        switch(sort){
-
-            case "price_asc":
-
-            sortOption={price:1};
-
-            break;
-
-            case "price_desc":
-
-            sortOption={price:-1};
-
-            break;
-
-            case "rating":
-
-            sortOption={averageRating:-1};
-
-            break;
-
-            case "popular":
-
-            sortOption={numReviews:-1};
-
-            break;
-
-            case "newest":
-
-            sortOption={createdAt:-1};
-
-            break;
-
-        }
-
-        const skip = (page-1)*limit;
-
-        const products = await Product.find(filter)
-            .sort(sortOption)
-            .skip(skip)
-            .limit(Number(limit));
-
-        const total = await Product.countDocuments(filter);
-
-        res.json({
-            success:true,
-            products,
-            page:Number(page),
-            pages:Math.ceil(total/limit),
-            total
-        });
-
+        } = req.body;
+       
         if (
             discountPrice &&
             Number(discountPrice) >= Number(price)
@@ -141,17 +104,17 @@ export const createProduct = async (req, res) => {
             slug = `${slug}-${Date.now()}`;
         }
 
-        const images = req.files.map(file => ({
-            url: file.path,
-            public_id: file.filename
-        }));
-
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({
                 success: false,
                 message: "Please upload at least one product image."
             });
         }
+
+        const images = req.files.map(file => ({
+            url: file.path,
+            public_id: file.filename
+        }));
 
         const product = await Product.create({
             name, 
@@ -185,6 +148,18 @@ export const createProduct = async (req, res) => {
 export const updateProduct = async (req, res) => {
     try {
 
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid product ID."
+
+            });
+
+        }
+
         const product = await Product.findById(req.params.id);
 
         if (!product) {
@@ -207,6 +182,21 @@ export const updateProduct = async (req, res) => {
             featured,
             isActive
         } = req.body;
+
+        if (
+            discountPrice !== undefined &&
+            Number(discountPrice) >= Number(price ?? product.price)
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Discount price must be less than the regular price."
+
+            });
+
+        }
 
         if (name) {
 
@@ -265,15 +255,21 @@ export const updateProduct = async (req, res) => {
 
         await product.save();
 
-        await notifyPriceDrop(product);
+        try {
 
-        res.status(200).json({
+            await notifyPriceDrop(product);
 
-            success: true,
+        } catch (error) {
 
-            product
+            console.error(
 
-        });
+                "Price notification failed:",
+
+                error.message
+
+            );
+
+        }
 
         res.status(200).json({
             success: true,
@@ -295,6 +291,18 @@ export const updateProduct = async (req, res) => {
 
 export const deleteProduct = async (req, res) => {
     try {
+
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid product ID."
+
+            });
+
+        }
 
         const product = await Product.findById(req.params.id);
 
@@ -324,6 +332,30 @@ export const deleteProduct = async (req, res) => {
 
         await product.deleteOne();
 
+        await Wishlist.updateMany(
+
+            {},
+
+            {
+                $pull: {
+                    items: {
+                        product: product._id
+                    }
+                }
+            }
+        );
+
+        await Cart.updateMany(
+            {},
+            {
+                $pull: {
+                    items: {
+                        product: product._id
+                    }
+                }
+            }
+        );
+
         res.status(200).json({
             success: true,
             message: "Product deleted successfully"
@@ -341,39 +373,29 @@ export const deleteProduct = async (req, res) => {
     }
 };
 
-export const getProducts = async (req, res) => {
-    try {
-        const resultPerPage = 12;
-
-        const apiFeatures = new APIFeatures(
-            Product.find(),
-            req.query
-        ).search().filter().sort().paginate(resultPerPage);
-
-        const products = await apiFeatures.query
-
-        res.status(200).json({
-            success: true,
-            count: products.length,
-            products
-        });
-
-    }catch(error) {
-        console.log(error);
-        res.status(500).json({
-            success: false,
-            message : error.message
-        });
-    }
-};
-
 export const getProductById = async (req, res) => {
 
     try {
 
-        const product = await Product.findById(
-            req.params.id
-        );
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid product ID."
+
+            });
+
+        }
+
+        const product = await Product.findOne({
+
+            _id: req.params.id,
+
+            isActive: true
+
+        });
 
         if (!product) {
 
@@ -384,9 +406,23 @@ export const getProductById = async (req, res) => {
 
         }
 
-        res.json({
+        const relatedProducts = await Product.find({
+
+            _id: {
+                $ne: product._id
+            },
+
+            category: product.category,
+            isActive: true
+
+        }).limit(4).select(
+            "name price discountPrice images averageRating"
+        );
+
+        res.status(200).json({
             success: true,
-            product
+            product,
+            relatedProducts
         });
 
     } catch (error) {
@@ -402,6 +438,18 @@ export const getProductById = async (req, res) => {
 
 export const getProductBySlug = async(req, res) => {
     try {
+
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid product ID."
+
+            });
+
+        }
         const product = await Product.findOne({
             slug: req.params.slug
         });
@@ -432,14 +480,57 @@ export const createReview = async (req, res) => {
     try{
         const { rating, comment } = req.body;
 
-        if (rating < 1 || rating > 5) {
+        if (!comment || comment.trim() === "") {
+
             return res.status(400).json({
+
                 success: false,
-                message: "Rating must be between 1 and 5."
+
+                message: "Review comment is required."
+
             });
+
         }
 
-        const product = await Product.findById(req.params.id);
+        if (
+
+            isNaN(Number(rating)) ||
+
+            Number(rating) < 1 ||
+
+            Number(rating) > 5
+
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Rating must be between 1 and 5."
+
+            });
+
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid product ID."
+
+            });
+
+        }
+
+        const product = await Product.findOne({
+
+            _id: req.params.id,
+
+            isActive: true
+
+        });
 
         if(!product) {
             return res.status(404).json({
@@ -461,11 +552,31 @@ export const createReview = async (req, res) => {
 
             user: req.user._id,
 
-            "payment.status": "paid",
+            orderStatus: "delivered",
 
             "items.product": product._id
 
         });
+
+        if (
+
+            isNaN(Number(rating)) ||
+
+            Number(rating) < 1 ||
+
+            Number(rating) > 5
+
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Rating must be between 1 and 5."
+
+            });
+
+        }
 
         const reviewImages = req.files
             ? req.files.map(file => ({
@@ -509,8 +620,21 @@ export const createReview = async (req, res) => {
         await product.save();
 
         res.status(201).json({
+
             success: true,
-            message: "Review added successfully"
+
+            message: "Review added successfully.",
+
+            review: product.reviews[
+
+                product.reviews.length - 1
+
+            ],
+
+            averageRating: product.averageRating,
+
+            numReviews: product.numReviews
+
         });
 
     }catch(error) {
@@ -526,6 +650,24 @@ export const createReview = async (req, res) => {
 export const deleteReview = async (req, res) => {
 
     try {
+
+        if (
+
+            !mongoose.Types.ObjectId.isValid(req.params.productId) ||
+
+            !mongoose.Types.ObjectId.isValid(req.params.reviewId)
+
+        ) {
+
+    return res.status(400).json({
+
+        success: false,
+
+        message: "Invalid ID."
+
+    });
+
+}
 
         const product = await Product.findById(req.params.productId);
 
@@ -565,25 +707,51 @@ export const deleteReview = async (req, res) => {
 
         for (const image of review.images) {
 
-            await cloudinary.uploader.destroy(
+            try {
 
-                image.public_id
+                await cloudinary.uploader.destroy(
 
-            );
+                    image.public_id
+
+                );
+
+            } catch (err) {
+
+                console.error(
+
+                    "Failed deleting review image:",
+
+                    image.public_id
+
+                );
+
+            }
 
         }
 
-        review.deleteOne();
+        await review.deleteOne();
 
         product.numReviews = product.reviews.length;
 
-        product.averageRating =
-            product.numReviews === 0
-                ? 0
-                : product.reviews.reduce(
-                    (sum, item) => sum + item.rating,
+        product.averageRating = product.numReviews === 0 ? 0 : Number(
+
+            (
+
+                product.reviews.reduce(
+
+                    (sum, item) =>
+
+                        sum + item.rating,
+
                     0
-                ) / product.numReviews;
+
+                ) /
+
+                product.numReviews
+
+            ).toFixed(1)
+
+        );
 
         await product.save();
 
@@ -617,7 +785,38 @@ export const updateReview = async (req, res) => {
 
         const { rating, comment } = req.body;
 
-        const product = await Product.findById(req.params.productId);
+        if (
+            isNaN(Number(rating)) ||
+            Number(rating) < 1 ||
+            Number(rating) > 5
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Rating must be between 1 and 5."
+            });
+        }
+
+        if (!comment || comment.trim() === "") {
+            return res.status(400).json({
+                success: false,
+                message: "Comment is required."
+            });
+        }
+
+        if (
+            !mongoose.Types.ObjectId.isValid(req.params.productId) ||
+            !mongoose.Types.ObjectId.isValid(req.params.reviewId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid ID."
+            });
+        }
+
+        const product = await Product.findOne({
+            _id: req.params.productId,
+            isActive: true
+        });
 
         if (!product) {
 
@@ -654,21 +853,37 @@ export const updateReview = async (req, res) => {
 
         review.comment = comment;
 
-        product.averageRating =
-            product.reviews.reduce(
-                (sum, item) => sum + item.rating,
-                0
-            ) / product.reviews.length;
+        product.averageRating = Number(
 
-        await product.save();
+            (
+
+                product.reviews.reduce(
+
+                    (sum, item) =>
+
+                        sum + item.rating,
+
+                    0
+
+                ) /
+
+                product.reviews.length
+
+            ).toFixed(1)
+
+        );
 
         res.status(200).json({
 
             success: true,
 
-            message: "Review updated.",
+            message: "Review updated successfully.",
 
-            review
+            review,
+
+            averageRating: product.averageRating,
+
+            numReviews: product.numReviews
 
         });
 
@@ -692,11 +907,28 @@ export const voteReviewHelpful = async (req, res) => {
 
     try {
 
-        const product = await Product.findById(
+        if (
 
-            req.params.productId
+            !mongoose.Types.ObjectId.isValid(req.params.productId) ||
 
-        );
+            !mongoose.Types.ObjectId.isValid(req.params.reviewId)
+
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid ID."
+
+            });
+
+        }
+
+        const product = await Product.findOne({
+            _id: req.params.productId,
+            isActive: true
+        });
 
         if (!product) {
 
@@ -752,13 +984,9 @@ export const voteReviewHelpful = async (req, res) => {
 
         }
 
-        review.helpfulVotes++;
+        review.helpfulVotes += 1;
 
-        review.votedUsers.push(
-
-            req.user._id
-
-        );
+        review.votedUsers.push(req.user._id);
 
         await product.save();
 
@@ -766,9 +994,9 @@ export const voteReviewHelpful = async (req, res) => {
 
             success: true,
 
-            helpfulVotes:
+            message: "Vote recorded successfully.",
 
-                review.helpfulVotes
+            helpfulVotes: review.helpfulVotes
 
         });
 
@@ -792,40 +1020,68 @@ export const getRelatedProducts = async(req,res)=>{
 
     try{
 
-        const product=
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
 
-        await Product.findById(
+            return res.status(400).json({
 
-        req.params.id
+                success: false,
 
-        );
+                message: "Invalid product ID."
 
-        if(!product){
-
-        return res.status(404).json({
-
-        success:false
-
-        });
+            });
 
         }
 
-        const related=
+        const product = await Product.findOne({
 
-        await Product.find({
+            _id: req.params.id,
+
+            isActive: true
+
+        });
+
+        if (!product) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "Product not found."
+
+            });
+
+        }
+
+        const related = await Product.find({
+
             _id:{
-                $ne:product._id
+                $ne: product._id
             },
 
-            category:product.category,
+            category: product.category,
 
-            isActive:true
+            isActive: true
 
-        }).limit(8);
+        }).select(
+
+            "name slug price discountPrice images averageRating numReviews"
+
+        )
+        .limit(8);
 
         res.json({
 
             success:true,
+
+            related
+
+        });
+
+        res.status(200).json({
+
+            success: true,
+
+            count: related.length,
 
             related
 

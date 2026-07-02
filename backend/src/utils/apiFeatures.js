@@ -8,46 +8,152 @@ class APIFeatures {
     }
 
     search() {
+
         if (this.queryString.keyword) {
+
             this.query = this.query.find({
-                name: {
-                    $regex: this.queryString.keyword,
-                    $options: "i"
+
+                $text: {
+
+                    $search: this.queryString.keyword
+
                 }
+
             });
+
         }
+
         return this;
+
     }
 
     filter() {
+
         const queryObj = {
+
             ...this.queryString
+
         };
 
         const removeFields = [
+
             "keyword",
+
             "page",
+
             "limit",
-            "sort"
+
+            "sort",
+
+            "minPrice",
+
+            "maxPrice",
+
+            "minRating"
+
         ];
 
-        removeFields.forEach(
-            field => delete queryObj[field]
+        removeFields.forEach(field =>
+
+            delete queryObj[field]
+
         );
+
+        if (
+
+            this.queryString.minPrice ||
+
+            this.queryString.maxPrice
+
+        ) {
+
+            queryObj.price = {};
+
+            if (this.queryString.minPrice)
+
+                queryObj.price.$gte =
+                    Number(this.queryString.minPrice);
+
+            if (this.queryString.maxPrice)
+
+                queryObj.price.$lte =
+                    Number(this.queryString.maxPrice);
+
+        }
+
+        if (this.queryString.minRating) {
+
+            queryObj.averageRating = {
+
+                $gte:
+                    Number(this.queryString.minRating)
+
+            };
+
+        }
 
         this.query = this.query.find(queryObj);
 
         return this;
+
     }
 
     sort() {
-        if (this.queryString.sort) {
-            this.query = this.query.sort(this.queryString.sort);
-        } else {
-            this.query = this.query.sort("-createdAt");
+
+        switch (this.queryString.sort) {
+
+            case "price_asc":
+
+                this.query = this.query.sort({
+
+                    price: 1
+
+                });
+
+                break;
+
+            case "price_desc":
+
+                this.query = this.query.sort({
+
+                    price: -1
+
+                });
+
+                break;
+
+            case "rating":
+
+                this.query = this.query.sort({
+
+                    averageRating: -1
+
+                });
+
+                break;
+
+            case "popular":
+
+                this.query = this.query.sort({
+
+                    numReviews: -1
+
+                });
+
+                break;
+
+            default:
+
+                this.query = this.query.sort({
+
+                    createdAt: -1
+
+                });
+
         }
 
         return this;
+
     }
 
     paginate(resultPage) {
