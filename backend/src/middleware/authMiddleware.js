@@ -20,6 +20,12 @@ const protect = async (req, res, next) => {
       });
     }
 
+    if (!process.env.JWT_SECRET) {
+
+        throw new Error("JWT_SECRET is missing.");
+
+    }
+
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET
@@ -39,12 +45,25 @@ const protect = async (req, res, next) => {
     next();
 
   } catch (error) {
-    console.error(error);
 
-    return res.status(401).json({
-      success: false,
-      message: "Invalid token"
-    });
+      console.error(error);
+
+      let message = "Invalid token.";
+
+      if (error.name === "TokenExpiredError") {
+
+          message = "Token has expired.";
+
+      }
+
+      return res.status(401).json({
+
+          success: false,
+
+          message
+
+      });
+
   }
 };
 
