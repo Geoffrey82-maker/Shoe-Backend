@@ -49,14 +49,9 @@ export const createOrder = async (req, res) => {
 
         const shippingFee = 0;
 
-        let discountAmount = 0;
+        let coupon = null;
 
-        const totalAmount = Math.max(
-            subtotal +
-            shippingFee -
-            discountAmount,
-            0
-        );
+        let discountAmount = 0;
 
         const orderNumber =
             `SHOE-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
@@ -87,7 +82,7 @@ export const createOrder = async (req, res) => {
 
         if (couponCode) {
 
-            const coupon = await Coupon.findOne({
+            coupon = await Coupon.findOne({
                 code: couponCode.trim().toUpperCase(),
                 isActive: true
             });
@@ -106,6 +101,16 @@ export const createOrder = async (req, res) => {
                 });
             }
 
+             if (
+                coupon.usageLimit &&
+                coupon.usedCount >= coupon.usageLimit
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Coupon usage limit reached."
+                });
+            }
+
             if (coupon.discountType === "percentage") {
 
                 discountAmount =
@@ -119,6 +124,13 @@ export const createOrder = async (req, res) => {
             }
         }
 
+        const totalAmount = Math.max(
+            subtotal +
+            shippingFee -
+            discountAmount,
+            0
+        );
+
 
         const order = await Order.create(
             [{
@@ -129,8 +141,6 @@ export const createOrder = async (req, res) => {
                 items: await Promise.all(
                     cart.items.map(async (item) => {
                         const product = await Product.findById(item.product);
-                        
-                        console.log(product.images);
 
                         return {
 
@@ -174,37 +184,14 @@ export const createOrder = async (req, res) => {
 
         const createdOrder = order[0];
 
-        for (const item of cart.items) {
-
-            await Product.findByIdAndUpdate(
-                item.product,
-                {
-                    $inc: {
-                        stock: -item.quantity
-                    }
-                },
-                {
-                    session
-                }
-            );
-
-        }
-
-        if (
-            coupon &&
-            coupon.usageLimit &&
-            coupon.usedCount >= coupon.usageLimit
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: "Coupon usage limit reached."
-            });
-        }
-
         //Clear user's cart
         cart.items = [];
 
         await cart.save({ session });
+
+        await session.commitTransaction();
+
+        session.endSession();
 
         try {
 
@@ -219,10 +206,6 @@ export const createOrder = async (req, res) => {
                 emailError.message
             );
         }
-
-        await session.commitTransaction();
-
-        session.endSession();
 
         return res.status(201).json({
             success: true,
@@ -252,7 +235,11 @@ export const getMyOrders = async (req, res) => {
     try {
         const orders = await Order.find({
             user: req.user._id
-        }).sort({ createdAt: -1 });
+        }).populate({
+            path: "items.product",
+            select: "name images price"
+        })
+        .sort({ createdAt: -1 });
 
         res.status(200).json({
             success: true,
@@ -270,9 +257,29 @@ export const getMyOrders = async (req, res) => {
 
 export const getOrderById = async (req, res) => {
     try {
-        const order = await Order.findById(
-            req.params.id
-        );
+
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid order ID."
+
+            });
+
+        }
+
+        const order = await Order.findById(req.params.id)
+        .populate({
+            path: "items.product",
+            select: "name slug images brand"
+        })
+
+        .populate({
+            path: "user",
+            select: "firstname lastname email"
+        });
 
         if(!order) {
             return res.status(404).json({
@@ -281,11 +288,16 @@ export const getOrderById = async (req, res) => {
             });
         }
 
-        if(order.user.toString() !== req.user._id.toString()) {
+        if (
+            order.user.toString() !== req.user._id.toString() &&
+            req.user.role !== "admin"
+        ) {
+
             return res.status(403).json({
                 success: false,
                 message: "Access denied"
             });
+
         }
 
         res.status(200).json({
@@ -305,7 +317,19 @@ export const getOrderById = async (req, res) => {
 
 export const updateOrderPaymentStatus = async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid order ID."
+
+            });
+
+        }
         const order = await Order.findById(req.params.id);
+
         if(!order) {
             return res.status(404).json({
                 success: false,
@@ -313,19 +337,48 @@ export const updateOrderPaymentStatus = async (req, res) => {
             });
         }
 
-        order.payment.status = "paid";
+        if (order.payment.status === "paid") {
 
-        order.payment.transactionId = transactionId;
+            return res.status(400).json({
 
-        order.payment.gateway = "stripe";
+                success: false,
 
-        order.payment.paidAt = new Date();
+                message: "Order already paid."
 
-        await order.save();
+            });
+
+        }
+
+        const { transactionId,gateway = "manual" } = req.body;
+
+        const success = await completeOrder(
+
+            order,
+
+            gateway,
+
+            transactionId,
+
+            new Date()
+
+        );
+
+        if (!success) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Unable to complete order."
+
+            });
+
+        }
 
         res.status(200).json({
             success: true,
-            message : "Order marked as paid"
+            message: "Order marked as paid.",
+            order
         });
     
     }catch(error) {
@@ -340,6 +393,19 @@ export const updateOrderPaymentStatus = async (req, res) => {
 
 export const cancelOrder = async (req, res) => {
     try {
+
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid order ID."
+
+            });
+
+        }
+
         const order = await Order.findById(req.params.id);
 
         if(!order) {
@@ -349,17 +415,25 @@ export const cancelOrder = async (req, res) => {
             });
         }
 
-        if(order.user.toString() !== req.user._id.toString()) {
+       if (
+            order.user.toString() !== req.user._id.toString() &&
+            req.user.role !== "admin"
+        ) {
             return res.status(403).json({
+
                 success: false,
+
                 message: "Access denied"
+
             });
         }
 
-        if(order.orderStatus === "shipped" || order.orderStatus === "delivered"){
+       if (
+            ["cancelled", "shipped", "delivered"].includes(order.orderStatus)
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "Order can no longer be cancelled"
+                message: "Order can no longer be cancelled."
             });
         }
 
@@ -371,22 +445,44 @@ export const cancelOrder = async (req, res) => {
         
         for (const item of order.items) {
 
-            await Product.findByIdAndUpdate(
-                item.product,
-                {
-                    $inc: {
-                        stock: item.quantity
-                    }
-                }
-            );
+            await adjustInventory({
+
+                productId: item.product,
+
+                quantity: item.quantity,
+
+                reason: "order_cancelled"
+
+            });
 
         }
 
         await order.save();
 
+        await createNotification({
+
+            user: order.user,
+
+            title: "Order Cancelled",
+
+            message: `Your order ${order.orderNumber} has been cancelled.`,
+
+            type: "order",
+
+            icon: "x-circle",
+
+            actionUrl: `/orders/${order._id}`
+
+        });
+
         res.status(200).json({
+
             success: true,
-            message: "Order cancelled successfully"
+
+            message: "Order cancelled successfully.",
+
+            order
+
         });
 
     }catch(error) {
@@ -399,3 +495,421 @@ export const cancelOrder = async (req, res) => {
     }
 }
 
+export const requestReturn = async (req, res) => {
+
+    try {
+
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid order ID."
+
+            });
+
+        }
+
+        const order = await Order.findById(req.params.id);
+
+        if (!order) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "Order not found."
+
+            });
+
+        }
+
+        if (order.user.toString() !== req.user._id.toString()) {
+
+            return res.status(403).json({
+
+                success: false,
+
+                message: "Access denied."
+
+            });
+
+        }
+
+        if (order.orderStatus !== "delivered") {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Only delivered orders can be returned."
+
+            });
+
+        }
+
+        if (order.returnRequest.requested) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Return request already submitted."
+
+            });
+
+        }
+
+        const { reason } = req.body;
+
+        if (!reason) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Return reason is required."
+
+            });
+
+        }
+
+        order.returnRequest.requested = true;
+
+        order.returnRequest.reason = reason;
+
+        order.returnRequest.status = "pending";
+
+        order.orderStatus = "return_requested";
+
+        order.returnRequest.requestedAt = new Date();
+
+        await order.save();
+
+        res.status(200).json({
+
+            success: true,
+
+            message: "Return request submitted successfully.",
+
+            order
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
+export const getReturnRequests = async (req, res) => {
+
+    try {
+
+        const orders = await Order.find({
+
+            "returnRequest.requested": true
+
+        })
+
+        .populate({
+
+            path: "user",
+
+            select: "firstname lastname email"
+
+        })
+
+        .sort({
+
+            "returnRequest.requestedAt": -1
+
+        });
+
+        res.status(200).json({
+
+            success: true,
+
+            count: orders.length,
+
+            orders
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
+export const processReturnRequest = async (req, res) => {
+
+    try {
+
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid order ID."
+
+            });
+
+        }
+
+        const order = await Order.findById(req.params.id);
+
+        if (!order) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "Order not found."
+
+            });
+
+        }
+
+        if (!order.returnRequest.requested) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "No return request found."
+
+            });
+
+        }
+
+        const { status,adminNotes } = req.body;
+
+        if (!["approved", "rejected"].includes(status)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Status must be approved or rejected."
+
+            });
+
+        }
+
+        if (status === "approved") {
+
+            for (const item of order.items) {
+
+                await adjustInventory({
+
+                    productId: item.product,
+
+                    quantity: item.quantity,
+
+                    reason: "return"
+
+                });
+
+                order.orderStatus = "return_approved";
+            }
+
+        }
+
+        if (status === "rejected") {
+
+            order.orderStatus = "return_rejected";
+
+        }
+        
+        await order.save();
+
+                await createNotification({
+
+            user: order.user,
+
+            title: "Return Request Updated",
+
+            message:
+
+                status === "approved"
+
+                ?
+
+                `Your return for ${order.orderNumber} has been approved.`
+
+                :
+
+                `Your return for ${order.orderNumber} has been rejected.`,
+
+            type: "order",
+
+            icon: "rotate-ccw",
+
+            actionUrl: `/orders/${order._id}`
+
+        });
+
+                res.status(200).json({
+
+            success: true,
+
+            message:
+                `Return ${status} successfully.`,
+
+            order
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
+export const processRefund = async (req, res) => {
+
+    try {
+
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid order ID."
+
+            });
+
+        }
+
+        const order = await Order.findById(req.params.id);
+
+        if (!order) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "Order not found."
+
+            });
+
+        }
+
+        if (
+
+            order.returnRequest.status !== "approved"
+
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Return has not been approved."
+
+            });
+
+        }
+
+        if (
+
+            order.payment.refund.status === "processed"
+
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Refund already processed."
+
+            });
+
+        }
+
+        order.payment.refund.status = "processed";
+        order.orderStatus = "refunded";
+
+        order.payment.refund.refundedAt = new Date();
+
+        order.payment.refund.amount = order.totalAmount;
+
+        await order.save();
+
+        await createNotification({
+
+            user: order.user,
+
+            title: "Refund Processed",
+
+            message:
+                `Your refund for ${order.orderNumber} has been processed.`,
+
+            type: "payment",
+
+            icon: "credit-card",
+
+            actionUrl: `/orders/${order._id}`
+
+        });
+
+        res.status(200).json({
+
+            success: true,
+
+            message: "Refund processed successfully.",
+
+            order
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};

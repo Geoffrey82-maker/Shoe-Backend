@@ -6,6 +6,8 @@ import axios from "axios";
 import generateAccessToken from "../config/mpesa.js";
 import generateToken from "../utils/generateToken.js";
 import { adjustInventory } from "../services/inventoryService.js";
+import User from "../models/User.js";
+import { createNotification } from "../notifications/notificationService.js";
 
 const completeOrder = async (
     order,
@@ -70,68 +72,18 @@ const completeOrder = async (
                     usedCount: 1
                 }
             },
-            {
-                session
-            }
         );
     }
 
-    cart.recovered=true;
-
-    await Cart.findOneAndDelete({
+    await Cart.findOneAndDelete(
+        {
         user: order.user
-    });
+        }
+    );
 
     await order.save();
 
     return true;
-
-    const admins = await User.find({
-
-            role: "admin"
-
-        }).select("_id");
-
-        for (const admin of admins) {
-
-            await createNotification({
-
-                user: admin._id,
-
-                title: "New Order",
-
-                message:
-                    `${order.orderNumber} has been placed.`,
-
-                type: "order",
-
-                icon: "shopping-cart",
-
-                actionUrl:
-                    `/admin/orders/${order._id}`
-
-            });
-
-    }
-
-    await createNotification({
-
-        user: order.user,
-
-        title: "Payment Successful",
-
-        message:
-            `Your payment for ${order.orderNumber} was successful.`,
-
-        type: "payment",
-
-        icon: "credit-card",
-
-        actionUrl:
-            `/orders/${order._id}`
-
-    });
-
 };
 
 export const createPaymentIntent = async (req, res) => {
@@ -161,7 +113,21 @@ export const createPaymentIntent = async (req, res) => {
             });
         }
 
-        console.log("Charging:", order.totalAmount);
+        if(order.payment.method !== "card") {
+            return res.status(400).json({
+                success: false,
+                message: "This order is not using card payment."
+            });
+        }
+
+        if (!order.totalAmount || order.totalAmount <= 0) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Invalid order total."
+            });
+
+        }
 
         const paymentIntent = await stripe.paymentIntents.create({
             amount: Math.round(
@@ -197,6 +163,30 @@ export const updatePaymentStatus = async (req, res) => {
     try {
         const { status } = req.body;
 
+        const allowedStatuses = [
+
+            "pending",
+
+            "paid",
+
+            "failed",
+
+            "refunded"
+
+        ];
+
+        if (!allowedStatuses.includes(status)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid payment status."
+
+            });
+
+        }
+
         const order = await Order.findById(req.params.id);
 
         if(!order) {
@@ -210,6 +200,14 @@ export const updatePaymentStatus = async (req, res) => {
 
         if(status === "paid") {
             order.payment.paidAt = new Date();
+        }else {
+            order.payment.paidAt = null;
+        }
+
+        if (status === "paid") {
+
+            order.orderStatus = "processing";
+
         }
 
         await order.save();
@@ -257,6 +255,10 @@ export const stripeWebhook = async (req, res) => {
 
         try {
 
+            if (!paymentIntent.metadata?.orderId) {
+                throw new Error("Missing order ID in Stripe metadata");
+            }
+
             const order = await Order.findById(
                 paymentIntent.metadata.orderId
             );
@@ -290,6 +292,55 @@ export const stripeWebhook = async (req, res) => {
                     `Failed completing order ${order.orderNumber}`
                 );
 
+                return res.status(500).json({
+                    received: false,
+                });
+
+            }
+
+            await createNotification({
+
+                user: order.user,
+
+                title: "Payment Successful",
+
+                message:
+                    `Your payment for ${order.orderNumber} was successful.`,
+
+                type: "payment",
+
+                icon: "credit-card",
+
+                actionUrl: `/orders/${order._id}`
+
+            });
+
+            const admins = await User.find({
+
+                role: "admin"
+
+            }).select("_id");
+
+            for (const admin of admins) {
+
+                await createNotification({
+
+                    user: admin._id,
+
+                    title: "New Paid Order",
+
+                    message:
+                        `${order.orderNumber} has been paid.`,
+
+                    type: "order",
+
+                    icon: "shopping-cart",
+
+                    actionUrl:
+                        `/admin/orders/${order._id}`
+
+                });
+
             }
 
             return res.json({
@@ -314,6 +365,54 @@ export const initiateMpesaPayment = async(req, res) => {
                 success: false,
                 message: "Order not found"
             });
+        }
+
+        if (order.user.toString() !== req.user._id.toString()) {
+
+            return res.status(403).json({
+
+                success: false,
+
+                message: "Access denied"
+
+            });
+
+        }
+
+        if (order.payment.status === "paid") {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Order already paid"
+
+            });
+
+        }
+
+        if (order.payment.method !== "mpesa") {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "This order is not using M-Pesa."
+
+            });
+
+        }
+
+        if (!phone) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Phone number is required."
+
+            });
+
         }
 
         const token = await generateAccessToken();
@@ -356,8 +455,8 @@ export const initiateMpesaPayment = async(req, res) => {
             }
         );
 
-        order.payment.transactionId =
-            response.data.CheckoutRequestID;
+        order.payment.checkoutRequestId = response.data.CheckoutRequestID;
+        order.payment.transactionId = mpesaReceiptNumber;
 
         order.payment.gateway = "mpesa";
 
@@ -377,69 +476,114 @@ export const initiateMpesaPayment = async(req, res) => {
 
         console.log(
             "MPESA ERROR:",
-            error.response?.data
+            error.response?.data || error.message
         );
 
-        console.log(error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to initiate M-Pesa payment."
+        });
     } 
 };
 
 export const mpesaCallback = async(req, res) => {
-    console.log(JSON.stringify(req.body, null, 2));
-    const callback = req.body.Body.stkCallback;
 
-    const checkoutRequestId = callback.CheckoutRequestID;
+    try {
 
-    const resultCode = callback.ResultCode;
+        console.log(JSON.stringify(req.body, null, 2));
+        const callback = req.body?.Body?.stkCallback;
 
-    const order = await Order.findOne({
-        "payment.transactionId": checkoutRequestId
-    });
+        if (!callback) {
 
-    if (!order) {
+            return res.status(400).json({
 
-        return res.status(404).json({
-            ResultCode: 0,
-            ResultDesc: "Order not found"
+                ResultCode: 0,
+
+                ResultDesc: "Invalid callback"
+
+            });
+
+        }
+
+        const checkoutRequestId = callback.CheckoutRequestID;
+
+        const resultCode = callback.ResultCode;
+
+        const order = await Order.findOne({
+            "payment.transactionId": checkoutRequestId
         });
 
-    }
+        if (!order) {
 
-    if (resultCode !== 0) {
+            return res.status(404).json({
+                ResultCode: 0,
+                ResultDesc: "Order not found"
+            });
 
-        order.payment.status = "failed";
+        }
 
-        await order.save();
+        if (resultCode !== 0) {
 
-        return res.status(200).json({
-            ResultCode: 0,
-            ResultDesc: "Received"
+            order.payment.status = "failed";
+
+            await order.save();
+
+            return res.status(200).json({
+                ResultCode: 0,
+                ResultDesc: "Received"
+            });
+
+        }
+
+            const receipt = callback.CallbackMetadata?.Item?.find(
+
+                item =>
+
+                item.Name === "MpesaReceiptNumber"
+
+            );
+        const receiptNumber = receipt?.Value;
+
+        if (!receiptNumber) {
+            throw new Error(
+                "Receipt number missing."
+            );
+        }
+
+        const success = await completeOrder(
+            order,
+            "mpesa",
+            receiptNumber,
+            new Date()
+        );
+
+        await createNotification({
+
+            user: order.user,
+
+            title: "Payment Successful",
+
+            message:
+                `Your payment for ${order.orderNumber} was successful.`,
+
+            type: "payment",
+
+            icon: "credit-card",
+
+            actionUrl: `/orders/${order._id}`
+
         });
 
+        res.status(200).json({
+            ResultCode: 0,
+            ResultDesc: "Success"
+        });
+    }catch(error) {
+
+        console.error(error);
+        res.status(500).json({
+            ResultCode: 0,
+            ResultDesc: "Internal Server Error"
+        });
     }
-
-    const receipt =
-        callback.CallbackMetadata.Item.find(
-            item =>
-                item.Name ===
-                "MpesaReceiptNumber"
-    );
-
-    const receiptNumber = receipt?.Value;
-
-    order.payment.status = "paid";
-
-    order.payment.gateway = "mpesa";
-
-    order.payment.transactionId =
-        receiptNumber;
-
-    order.payment.paidAt = new Date();
-
-    order.orderStatus = "processing";
-
-    res.status(200).json({
-        ResultCode: 0,
-        ResultDesc: "Success"
-    });
-};
+}

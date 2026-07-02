@@ -137,6 +137,27 @@ const orderSchema = new mongoose.Schema({
         },
 
         paidAt: Date,
+
+        refund: {
+
+            status: {
+                type: String,
+                enum: [
+                    "none",
+                    "pending",
+                    "processed"
+                ],
+                default: "none"
+            },
+
+            refundedAt: Date,
+
+            amount: {
+                type: Number,
+                default: 0
+            }
+
+        },
     },
 
 
@@ -151,9 +172,46 @@ const orderSchema = new mongoose.Schema({
             "shipped",
             "delivered",
             "cancelled",
+            "return_requested",
+            "return_approved",
+            "return_rejected",
             "refunded"
         ],
         default: "pending"
+    },
+
+    returnRequest: {
+
+        requested: {
+            type: Boolean,
+            default: false
+        },
+
+        reason: {
+            type: String,
+            default: ""
+        },
+
+        status: {
+            type: String,
+            enum: [
+                "pending",
+                "approved",
+                "rejected",
+                "completed"
+            ],
+            default: "pending"
+        },
+
+        requestedAt: Date,
+
+        processedAt: Date,
+
+        adminNotes: {
+            type: String,
+            default: ""
+        }
+
     },
 
     deliveredAt: {
