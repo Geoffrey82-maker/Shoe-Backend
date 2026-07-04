@@ -47,6 +47,12 @@ export const getAllOrders = async (req, res) => {
             orders
         });
 
+        if (req.query.status) {
+
+            filter.orderStatus = req.query.status;
+
+        }
+
     } catch(error) {
 
         console.error(error);
@@ -61,6 +67,16 @@ export const getAllOrders = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
     try {
         const { status } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Invalid order ID"
+            });
+
+        }
+
         const order = await Order.findById(req.params.id);
 
         if(!order) {
@@ -86,7 +102,6 @@ export const updateOrderStatus = async (req, res) => {
             });
         }
 
-        order.orderStatus = status;
 
         if(status === "shipped") {
             //send shipped email
@@ -108,6 +123,8 @@ export const updateOrderStatus = async (req, res) => {
                 message: "Delivered orders cannot be cancelled."
             });
         }
+
+        order.orderStatus = status;
 
         await order.save();
 
@@ -208,9 +225,15 @@ export const getDashboardStats = async(req, res) => {
 export const getRecentOrders = async (req, res) => {
     try{
         const orders = await Order.find()
+            .select(
+                "orderNumber totalAmount orderStatus payment createdAt"
+            )
             .populate("user", "firstname lastname email")
             .sort({ createdAt: -1 })
-            .limit(10);
+            .limit(10)
+            .find({
+                "payment.status": "paid"
+            });
         
         res.status(200).json({
             success: true,
@@ -231,11 +254,11 @@ export const getRecentOrders = async (req, res) => {
 export const getLowStockProducts = async (req, res) => {
     try {
         const products = await Product.find({
-            stock: {
-                $lte: 5
-            },
+            stock: { $lte: 5 },
             isActive: true
-        });
+        }).select(
+            "name stock price images category"
+        ).sort({ stock: 1 });
 
         res.status(200).json({
             success: true, 
@@ -255,6 +278,20 @@ export const getLowStockProducts = async (req, res) => {
 export const getBestSellingProduct = async (req, res) => {
     try {
         const bestSellers = await Order.aggregate([
+            {
+                $match: {
+
+                    "payment.status": "paid",
+
+                    orderStatus: {
+
+                        $ne: "cancelled"
+
+                    }
+
+                }
+            },
+
             { $unwind: "$items" },
 
             {

@@ -575,166 +575,308 @@ export const uploadAvatar = async(req,res)=>{
 };
 
 export const getAddresses = async(req,res)=>{
+    try {
+        const user =
+            await User.findById(
+                req.user._id
+            );
 
-    const user =
-        await User.findById(
-            req.user._id
-        );
+        if (!user) {
 
-    res.status(200).json({
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
 
-        success:true,
+        }
 
-        addresses:
-        user.addresses
+        res.status(200).json({
 
-    });
+            success:true,
 
+            addresses:
+            user.addresses
+
+        });
+    }catch (error) {
+
+            console.error(error);
+            res.status(500).json({
+                success: false,
+                message: "Server error"
+            });
+    }
 };
 
 export const addAddress = async(req,res)=>{
+    try {
+        const user =
+            await User.findById(
+                req.user._id
+            );
 
-    const user =
-        await User.findById(
-            req.user._id
+        if (!user) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "User not found"
+
+            });
+
+        }
+
+        user.addresses.push(
+            req.body
         );
 
-    user.addresses.push(
-        req.body
-    );
+        await user.save();
 
-    await user.save();
+        res.status(201).json({
 
-    res.status(201).json({
+            success:true,
 
-        success:true,
+            addresses:
+            user.addresses
 
-        addresses:
-        user.addresses
+        });
+    }catch(error) {
+        console.error(error);
 
-    });
-
+        res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
 };
 
 export const deleteAddress = async(req,res)=>{
 
-    const user =
-        await User.findById(
-            req.user._id
-        );
+    try {
+        const user =
+            await User.findById(
+                req.user._id
+            );
 
-    user.addresses =
-        user.addresses.filter(
+        if (!user) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "User not found"
+
+            });
+
+        }
+
+        const addressExists = user.addresses.some(
 
             address =>
 
-            address._id.toString()
-            !==
-            req.params.id
+                address._id.toString() === req.params.id
 
         );
 
-    await user.save();
+        if (!addressExists) {
 
-    res.status(200).json({
+            return res.status(404).json({
 
-        success:true,
+                success: false,
 
-        message:
-        "Address deleted"
+                message: "Address not found"
 
-    });
+            });
+
+        }
+
+        user.addresses = user.addresses.filter(
+
+                address =>
+
+                address._id.toString()
+                !==
+                req.params.id
+
+            );
+
+        if (
+
+            user.addresses.length > 0 &&
+
+            !user.addresses.some(a => a.isDefault)
+
+        ) {
+
+            user.addresses[0].isDefault = true;
+
+        }
+
+        await user.save();
+
+        res.status(200).json({
+
+            success:true,
+
+            message:
+            "Address deleted successfully",
+
+        });
+    }catch(error) {
+
+            console.error(error);
+
+            res.status(500).json({
+                success: false,
+                message: "Server error"
+            });
+
+    }
 
 };
 
 export const updateAddress = async(req,res)=>{
+    try {
+        const user =
+            await User.findById(
+                req.user._id
+            );
 
-    const user =
-        await User.findById(
-            req.user._id
-        );
+        if (!user) {
 
-    const address =
-        user.addresses.id(
-            req.params.id
-        );
+            return res.status(404).json({
 
-    if(!address){
+                success: false,
 
-        return res.status(404).json({
+                message: "User not found"
 
-            success:false,
+            });
 
-            message:
-            "Address not found"
+        }
+
+        const address =
+            user.addresses.id(
+                req.params.id
+            );
+
+        if(!address){
+
+            return res.status(404).json({
+
+                success:false,
+
+                message:
+                "Address not found"
+
+            });
+        }
+
+        address.fullName =
+            req.body.fullName ||
+            address.fullName;
+
+        address.phone =
+            req.body.phone ||
+            address.phone;
+
+        address.address =
+            req.body.address ||
+            address.address;
+
+        address.city =
+            req.body.city ||
+            address.city;
+
+        address.postalCode =
+            req.body.postalCode ||
+            address.postalCode;
+
+        address.country =
+            req.body.country ||
+            address.country;
+
+        await user.save();
+
+        res.status(200).json({
+
+            success:true,
+
+            addresses:
+            user.addresses
 
         });
-    }
 
-    address.fullName =
-        req.body.fullName ||
-        address.fullName;
+        }catch(error) {
 
-    address.phone =
-        req.body.phone ||
-        address.phone;
+            console.error(error);
 
-    address.address =
-        req.body.address ||
-        address.address;
+            res.status(500).json({
+                success: false,
+                message: "Server error"
+            });
 
-    address.city =
-        req.body.city ||
-        address.city;
-
-    address.postalCode =
-        req.body.postalCode ||
-        address.postalCode;
-
-    address.country =
-        req.body.country ||
-        address.country;
-
-    await user.save();
-
-    res.status(200).json({
-
-        success:true,
-
-        addresses:
-        user.addresses
-
-    });
+        }
 
 };
 
 export const setDefaultAddress = async(req,res)=>{
 
-    const user =
-        await User.findById(
-            req.user._id
-        );
+    try {
 
-    user.addresses.forEach(
-        address => {
+        const user = await User.findById(
+                req.user._id
+            );
 
-            address.isDefault =
-                address._id.toString()
-                ===
-                req.params.id;
+        if (!user) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "User not found"
+
+            });
 
         }
-    );
 
-    await user.save();
+        const address = user.addresses.id(req.params.id);
 
-    res.status(200).json({
+        if (!address) {
 
-        success:true,
+            return res.status(404).json({
 
-        message:
-        "Default address updated"
+                success: false,
 
-    });
+                message: "Address not found"
+
+            });
+
+        }
+
+        user.addresses.forEach(
+            address => { 
+                address.isDefault = address._id.toString() === req.params.id;
+            }
+        );
+
+        await user.save();
+
+        res.status(200).json({
+
+            success:true,
+
+            message: "Default address updated successfully."
+
+        });
+    }catch(error) {
+
+            console.error(error);
+
+            res.status(500).json({
+                success: false,
+                message: "Server error"
+            });
+    }
 
 };
