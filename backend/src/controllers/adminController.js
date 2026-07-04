@@ -395,9 +395,14 @@ export const restockProduct = async (req, res) => {
 
     try {
 
-        const {
-            quantity
-        } = req.body;
+        const qty = Number(quantity);
+
+        if (!Number.isFinite(qty) || qty <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Quantity must be greater than zero."
+            });
+        }
 
         const product = await adjustInventory({
 
@@ -440,6 +445,21 @@ export const adjustProductInventory = async (req, res) => {
             reason
         } = req.body;
 
+        const allowedReasons = [
+            "restock",
+            "manual_adjustment",
+            "damaged",
+            "returned",
+            "correction"
+        ];
+
+        if (!allowedReasons.includes(reason)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid inventory adjustment reason."
+            });
+        }
+
         const product = await adjustInventory({
             productId: req.params.id,
             quantity: Number(quantity),
@@ -474,6 +494,10 @@ export const getInventoryHistory = async (req, res) => {
 
     try {
 
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+
         const history = await InventoryHistory.find({
             product: req.params.id
         })
@@ -483,7 +507,11 @@ export const getInventoryHistory = async (req, res) => {
         )
         .sort({
             createdAt: -1
-        });
+        }).select(
+            "quantity reason createdAt performedBy"
+        )
+        .skip(skip)
+        .limit(limit);
 
         res.status(200).json({
             success: true,
