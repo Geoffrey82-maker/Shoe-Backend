@@ -31,22 +31,6 @@ const reviewSchema = new mongoose.Schema({
     },
 
     helpfulVotes: {
-
-        type: Number,
-
-        default: 0
-
-    },
-
-    votedUsers: [{
-
-        type: mongoose.Schema.Types.ObjectId,
-
-        ref: "User"
-
-    }],
-
-    helpfulVotes: {
         type: Number,
         default: 0
     },
@@ -121,6 +105,10 @@ const productSchema = new mongoose.Schema(
         price: {
             type: Number,
             required: true,
+            min: 0
+        },
+        discountPrice: {
+            type: Number,
             min: 0
         },
         stock: {

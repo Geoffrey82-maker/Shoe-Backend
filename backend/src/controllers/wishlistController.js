@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Wishlist from "../models/Wishlist.js";
 import Cart from "../models/Cart.js";
 import Product from "../models/Product.js";

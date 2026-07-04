@@ -79,7 +79,7 @@ export const validateCoupon = async (req, res) => {
         console.log(error);
 
         res.status(500).json({
-            success: true,
+            success: false,
             message: error.message
         });
     }
@@ -117,6 +117,8 @@ export const toggleCouponStatus = async (req, res) => {
         }
 
         coupon.isActive = !coupon.isActive;
+
+        await coupon.save();
 
         res.status(200).json({
             success: true,

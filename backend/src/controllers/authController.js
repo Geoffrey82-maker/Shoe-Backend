@@ -3,6 +3,7 @@ import generateToken from '../utils/generateToken.js';
 import logEvent from "../services/eventLogServices.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import cloudinary from "../config/cloudinary.js";
 import { sendPasswordResetEmail } from '../services/emailService.js';
 
 export const register = async (req, res) => {
@@ -121,7 +122,7 @@ export const login = async (req, res) => {
         const cleanEmail = email.trim().toLowerCase();
 
         // Find User
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email: cleanEmail });
         if(!user) {
             return res.status(401).json({
                 success: false,
@@ -254,6 +255,14 @@ export const updateProfile = async(req, res) => {
     }catch(error) {
 
         console.error(error);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: "Server error"
+
+        });
     }
 };
 
@@ -390,10 +399,10 @@ export const forgotPassword = async (req, res) => {
 
         const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
-        await sendPasswordResetEmail(
-            user.email,
+        await sendPasswordResetEmail({
+            user,
             resetUrl
-        );
+        });
 
         res.status(200).json({
             success: true,
@@ -532,21 +541,37 @@ export const uploadAvatar = async(req,res)=>{
 
         }
 
+        const oldAvatarPublicId = user.avatarPublicId;
+
         user.avatar = req.file.path;
 
         user.avatarPublicId = req.file.filename;
 
-        if (user.avatarPublicId) {
+        await user.save();
 
-            await cloudinary.uploader.destroy(
+        if (oldAvatarPublicId) {
 
-                user.avatarPublicId
+            try {
 
-            );
+                await cloudinary.uploader.destroy(
+
+                    oldAvatarPublicId
+
+                );
+
+            } catch (err) {
+
+                console.error(
+
+                    "Failed to delete old avatar:",
+
+                    err.message
+
+                );
+
+            }
 
         }
-
-        await user.save();
 
         res.status(200).json({
 

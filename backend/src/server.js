@@ -3,7 +3,6 @@ import 'dotenv/config';
 import app from "./app.js";
 import connectDB from "./config/db.js";
 import cloudinaryHealthCheck from "./config/cloudinaryHealthCheck.js";
-import errorHandler from "./middleware/errorHandler.js";
 import logger from "./utils/logger.js";
 import http from "http";
 
@@ -29,7 +28,6 @@ const startServer = async() => {
         });
         const server = http.createServer(app);
         initSocket(server);
-        app.use(errorHandler);
         server.listen(PORT, () => {
             logger.info(`Server running on port ${PORT}`);
         });

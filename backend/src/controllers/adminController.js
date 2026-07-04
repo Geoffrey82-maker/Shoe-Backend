@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import User from "../models/User.js";
@@ -18,6 +19,12 @@ export const getAllOrders = async (req, res) => {
                 }
             }
             : {};
+
+        if (req.query.status) {
+
+            filter.orderStatus = req.query.status;
+
+        }
 
         const page = Number(req.query.page) || 1;
 
@@ -46,12 +53,6 @@ export const getAllOrders = async (req, res) => {
             totalPages: Math.ceil(totalOrders / limit),
             orders
         });
-
-        if (req.query.status) {
-
-            filter.orderStatus = req.query.status;
-
-        }
 
     } catch(error) {
 
@@ -224,16 +225,15 @@ export const getDashboardStats = async(req, res) => {
 
 export const getRecentOrders = async (req, res) => {
     try{
-        const orders = await Order.find()
+        const orders = await Order.find({
+                "payment.status": "paid"
+            })
             .select(
                 "orderNumber totalAmount orderStatus payment createdAt"
             )
             .populate("user", "firstname lastname email")
             .sort({ createdAt: -1 })
-            .limit(10)
-            .find({
-                "payment.status": "paid"
-            });
+            .limit(10);
         
         res.status(200).json({
             success: true,
@@ -395,6 +395,8 @@ export const restockProduct = async (req, res) => {
 
     try {
 
+        const { quantity } = req.body;
+
         const qty = Number(quantity);
 
         if (!Number.isFinite(qty) || qty <= 0) {
@@ -407,7 +409,7 @@ export const restockProduct = async (req, res) => {
         const product = await adjustInventory({
 
             productId: req.params.id,
-            quantity: Number(quantity),
+            quantity: qty,
             reason: "restock",
             performedBy: req.user._id
 

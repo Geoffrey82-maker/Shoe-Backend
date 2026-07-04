@@ -10,22 +10,6 @@ new mongoose.Schema({
         unique: true
     },
 
-    priceWhenAdded: {
-
-            type: Number,
-
-            required: true
-
-    },
-
-    priceWhenAdded: {
-
-        type: Number,
-
-        required: true
-
-    },
-
     products: [
         {
             product: {

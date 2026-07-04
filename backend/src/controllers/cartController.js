@@ -62,6 +62,13 @@ export const addToCart = async (req, res) => {
 
         });
 
+        if(!product) {
+            return res.status(404).json({
+                success: false,
+                message: "Product not found"
+            });
+        }
+
         if (!product.sizes.includes(Number(size))) {
 
             return res.status(400).json({
@@ -98,13 +105,6 @@ export const addToCart = async (req, res) => {
 
             });
 
-        }
-
-        if(!product) {
-            return res.status(404).json({
-                success: false,
-                message: "Product not found"
-            });
         }
 
         let cart = await Cart.findOne({
@@ -291,6 +291,15 @@ export const updateCartItem = async (req, res) => {
             });
         }
 
+        const item = cart.items.find(item => item._id.toString() === itemId);
+
+        if(!item) {
+            return res.status(404).json({
+                success: false,
+                message: "Cart item not found"
+            });
+        }
+
         const product = await Product.findById(item.product);
 
         if (!product) {
@@ -315,15 +324,6 @@ export const updateCartItem = async (req, res) => {
 
             });
 
-        }
-
-        const item = cart.items.find(item => item._id.toString() === itemId);
-
-        if(!item) {
-            return res.status(404).json({
-                success: false,
-                message: "Cart item not found"
-            });
         }
 
         item.quantity = Number(quantity);

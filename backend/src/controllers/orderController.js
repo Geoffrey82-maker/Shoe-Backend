@@ -5,6 +5,9 @@ import Product from "../models/Product.js";
 import mongoose from "mongoose";
 import crypto from "crypto";
 import { sendOrderConfirmationEmail } from '../services/emailService.js';
+import { adjustInventory } from "../services/inventoryService.js";
+import { createNotification } from "../notifications/notificationService.js";
+import { completeOrder } from "./paymentController.js";
 
 export const createOrder = async (req, res) => {
     let session;
@@ -195,10 +198,10 @@ export const createOrder = async (req, res) => {
 
         try {
 
-            await sendOrderConfirmationEmail({
-                user: req.user,
-                order
-            });
+            await sendOrderConfirmationEmail(
+                req.user,
+                createdOrder
+            );
             
         }catch(emailError) {
             console.error(

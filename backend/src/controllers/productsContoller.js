@@ -1,4 +1,6 @@
+import mongoose from "mongoose";
 import Product from '../models/Product.js';
+import Order from "../models/Order.js";
 import APIFeatures from '../utils/apiFeatures.js';
 import cloudinary from "../config/cloudinary.js";
 import {
@@ -439,17 +441,6 @@ export const getProductById = async (req, res) => {
 export const getProductBySlug = async(req, res) => {
     try {
 
-        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "Invalid product ID."
-
-            });
-
-        }
         const product = await Product.findOne({
             slug: req.params.slug
         });
@@ -557,26 +548,6 @@ export const createReview = async (req, res) => {
             "items.product": product._id
 
         });
-
-        if (
-
-            isNaN(Number(rating)) ||
-
-            Number(rating) < 1 ||
-
-            Number(rating) > 5
-
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message: "Rating must be between 1 and 5."
-
-            });
-
-        }
 
         const reviewImages = req.files
             ? req.files.map(file => ({
@@ -873,6 +844,8 @@ export const updateReview = async (req, res) => {
 
         );
 
+        await product.save();
+
         res.status(200).json({
 
             success: true,
@@ -1068,14 +1041,6 @@ export const getRelatedProducts = async(req,res)=>{
 
         )
         .limit(8);
-
-        res.json({
-
-            success:true,
-
-            related
-
-        });
 
         res.status(200).json({
 

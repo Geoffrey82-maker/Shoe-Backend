@@ -2,6 +2,7 @@ import stripe from "../config/stripe.js";
 import Order from "../models/Order.js";
 import Cart from "../models/Cart.js";
 import Product from "../models/Product.js";
+import Coupon from "../models/Coupon.js";
 import axios from "axios";
 import generateAccessToken from "../config/mpesa.js";
 import generateToken from "../utils/generateToken.js";
@@ -9,7 +10,7 @@ import { adjustInventory } from "../services/inventoryService.js";
 import User from "../models/User.js";
 import { createNotification } from "../notifications/notificationService.js";
 
-const completeOrder = async (
+export const completeOrder = async (
     order,
     gateway,
     transactionId,
@@ -455,8 +456,12 @@ export const initiateMpesaPayment = async(req, res) => {
             }
         );
 
+        // The STK push has only been initiated here - there is no M-Pesa
+        // receipt number yet. That only arrives later via mpesaCallback.
+        // We store the CheckoutRequestID as the transactionId so the
+        // callback can look the order back up (see mpesaCallback below).
         order.payment.checkoutRequestId = response.data.CheckoutRequestID;
-        order.payment.transactionId = mpesaReceiptNumber;
+        order.payment.transactionId = response.data.CheckoutRequestID;
 
         order.payment.gateway = "mpesa";
 

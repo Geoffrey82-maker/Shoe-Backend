@@ -15,6 +15,6 @@ export const orderValidation = [
 
     body("paymentMethod")
         .notEmpty()
-        .withMessage()
+        .withMessage("Payment method required")
 
 ];
